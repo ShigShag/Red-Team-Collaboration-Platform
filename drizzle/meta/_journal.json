@@ -1,0 +1,447 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1770378324187,
+      "tag": "0000_motionless_warbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770380035771,
+      "tag": "0001_motionless_galactus",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770380766883,
+      "tag": "0002_adorable_silver_fox",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770381297180,
+      "tag": "0003_sharp_northstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770387076282,
+      "tag": "0004_sparkling_blonde_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770387684227,
+      "tag": "0005_stale_nicolaos",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770390380369,
+      "tag": "0006_boring_kang",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1770391200000,
+      "tag": "0007_seed_category_presets",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1770391800000,
+      "tag": "0008_restructure_engagement_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1770392400000,
+      "tag": "0009_add_category_locked",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1770393000000,
+      "tag": "0010_add_category_children",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1770393600000,
+      "tag": "0011_resource_system_redesign",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1770394200000,
+      "tag": "0012_add_activity_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1770394800000,
+      "tag": "0013_add_field_language",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1770395400000,
+      "tag": "0014_add_action_updated_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1770396000000,
+      "tag": "0015_add_tags_system",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1770396600000,
+      "tag": "0016_add_ip_geolocations",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1770397200000,
+      "tag": "0017_add_action_content_format",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1770397800000,
+      "tag": "0018_add_domain_resolutions",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1770398400000,
+      "tag": "0019_add_findings",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1770484800000,
+      "tag": "0020_widen_cvss_vector",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1770485400000,
+      "tag": "0021_remove_finding_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1770486000000,
+      "tag": "0022_add_finding_ip_source",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1770572400000,
+      "tag": "0023_add_report_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1770658800000,
+      "tag": "0024_add_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1770745200000,
+      "tag": "0025_add_pending2fa_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1770831600000,
+      "tag": "0026_add_security_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1770918000000,
+      "tag": "0027_add_file_decryption_failed_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1771004400000,
+      "tag": "0028_add_security_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1771090800000,
+      "tag": "0029_file_size_bigint",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1771177200000,
+      "tag": "0030_add_recovery_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1771263600000,
+      "tag": "0031_add_admin_and_disabled",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1771350000000,
+      "tag": "0032_add_platform_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1771436400000,
+      "tag": "0033_add_invite_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1771522800000,
+      "tag": "0034_add_admin_password_reset_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1771609200000,
+      "tag": "0035_add_onboarding_dismissed",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1771695600000,
+      "tag": "0036_add_engagement_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1771782000000,
+      "tag": "0037_add_comments",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1771868400000,
+      "tag": "0038_add_content_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1771954800000,
+      "tag": "0039_add_scoping",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1772041200000,
+      "tag": "0039_drop_content_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1772127600000,
+      "tag": "0040_add_finding_screenshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1772214000000,
+      "tag": "0041_add_finding_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1772300400000,
+      "tag": "0042_seed_finding_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1772386800000,
+      "tag": "0043_add_fixed_severity",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1772473200000,
+      "tag": "0044_add_session_hijack_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1772559600000,
+      "tag": "0045_add_design_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1772646000000,
+      "tag": "0046_add_mdx_source",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1772732400000,
+      "tag": "0047_add_ai_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1772818800000,
+      "tag": "0048_seed_more_finding_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1772905200000,
+      "tag": "0049_add_engagement_exported_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1772991600000,
+      "tag": "0050_add_engagement_duplicated_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1773078000000,
+      "tag": "0051_add_search_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1773164400000,
+      "tag": "0052_add_engagement_imported_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1773250800000,
+      "tag": "0053_add_category_updated_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1773337200000,
+      "tag": "0054_add_report_json_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1773423600000,
+      "tag": "0055_add_methodology_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1773510000000,
+      "tag": "0056_seed_methodology_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1773596400000,
+      "tag": "0057_rename_emergency_contacts",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1773682800000,
+      "tag": "0058_add_report_qa_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1773769200000,
+      "tag": "0059_extend_enums_report_qa",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1773855600000,
+      "tag": "0060_add_report_qa_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1773942000000,
+      "tag": "0061_add_arsenal",
+      "breakpoints": true
+    }
+  ]
+}

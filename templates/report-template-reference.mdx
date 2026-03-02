@@ -1,0 +1,305 @@
+{/*
+ * ================================================================
+ *  REPORT TEMPLATE REFERENCE
+ * ================================================================
+ *
+ *  This file defines the PDF report structure using MDX — a format
+ *  that combines Markdown with JSX components (React-like tags).
+ *
+ *  HOW TO USE
+ *  ----------
+ *  1. Download or copy this file
+ *  2. Edit it: remove sections, reorder them, add custom text
+ *  3. Paste it into the MDX Template editor and save
+ *
+ *  You can also paste this entire file into ChatGPT / Claude and
+ *  ask the AI to create a custom template for your needs.
+ *
+ *
+ *  KEY CONCEPTS
+ *  ------------
+ *  - Components auto-read engagement data. Just place a component
+ *    like <FindingsDetail /> — no props needed.
+ *  - <SectionHeading title="..." /> adds a styled header with an
+ *    accent underline. Pair it with a data component below.
+ *  - To remove a section, delete both the <SectionHeading> and
+ *    the component below it.
+ *  - To reorder sections, cut/paste the heading+component block.
+ *
+ *
+ *  CONSTRAINTS
+ *  -----------
+ *  - This renders to PDF, not HTML. No <div>, <span>, <p> etc.
+ *    Use <View> (container), <Text> (text), <Image> (images).
+ *  - No CSS classes. Use inline style={{ ... }} objects:
+ *      <Text style={{ fontSize: 12, fontWeight: 700 }}>Bold</Text>
+ *  - No imports. All components are pre-injected automatically.
+ *  - PDF fonts only: Helvetica, Courier, Times-Roman
+ *    (and their Bold / Italic variants).
+ *  - No JavaScript logic (loops, conditionals). The data-aware
+ *    components handle all logic internally.
+ *
+ *
+ *  AVAILABLE COMPONENTS
+ *  --------------------
+ *
+ *  Layout:
+ *    <Document>              Root wrapper (must be outermost)
+ *    <Page>                  A4 page with themed margins
+ *    <CoverPage />           Full cover page (own page, not inside <Page>)
+ *    <Header />              Fixed page header (engagement name + CONFIDENTIAL)
+ *    <Footer />              Fixed page footer (date + page numbers)
+ *    <SectionHeading title="..." />  Styled section header with accent line
+ *
+ *  Data Sections (auto-read from engagement data):
+ *    <ConfidentialityNotice />  Confidentiality notice + distribution list
+ *    <TableOfContents />        Auto-generated table of contents
+ *    <ExecutiveSummary />       Summary with severity stat boxes
+ *    <ScopeTable />             Targets, exclusions, constraints, team, period
+ *    <Methodology />            Custom methodology text (markdown)
+ *    <FindingsSummary />        Severity breakdown stats + summary table
+ *    <FindingsDetail />         Full finding cards (title, severity, CVSS,
+ *                               overview, impact, recommendation, MITRE tags)
+ *    <MitreMatrix />            MITRE ATT&CK techniques by tactic
+ *    <ActionsTimeline />        Chronological action log with dates/tags
+ *    <RemediationPlan />        Priority-sorted remediation table
+ *    <TeamTable />              Team members (name, username, role)
+ *    <IPTable />                IP addresses grouped by country
+ *    <Glossary />               Security terms glossary
+ *
+ *  Utilities:
+ *    <SeverityBadge severity="critical" />  Colored severity badge
+ *    <Markdown content="**bold** text" />   Render markdown to PDF
+ *    <View style={...}>         Layout container (like div), supports flexbox
+ *    <Text style={...}>         Text element — all visible text goes in here
+ *    <Image src={...} style={{ width: 100, height: 50 }} />
+ *    <Link src="https://...">   Hyperlink
+ *
+ *
+ *  STYLING REFERENCE
+ *  -----------------
+ *  Common style properties:
+ *    fontSize        (number, e.g. 10)
+ *    fontWeight      (400 = normal, 600 = semibold, 700 = bold)
+ *    fontFamily      ("Helvetica" | "Courier" | "Times-Roman")
+ *    color           (hex string, e.g. "#1a1a1a")
+ *    backgroundColor (hex string)
+ *    margin / marginTop / marginBottom / marginHorizontal
+ *    padding / paddingTop / paddingBottom / paddingHorizontal
+ *    borderWidth / borderColor / borderRadius
+ *    flexDirection   ("row" | "column")
+ *    justifyContent  ("center" | "space-between" | "flex-start" | "flex-end")
+ *    alignItems      ("center" | "flex-start" | "flex-end")
+ *    gap             (number)
+ *    width / height  (number or percentage string e.g. "50%")
+ *    textAlign       ("left" | "center" | "right")
+ *
+ *  Example:
+ *    <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+ *      <Text style={{ fontSize: 14, fontWeight: 700 }}>Title</Text>
+ *      <Text style={{ fontSize: 10, color: "#718096" }}>Subtitle</Text>
+ *    </View>
+ *
+ *
+ *  DATA AVAILABLE TO COMPONENTS
+ *  ----------------------------
+ *  Components read from context automatically. The data includes:
+ *
+ *  engagement: { name, description, startDate, endDate }
+ *  members:    [{ username, displayName, role }]
+ *  findings:   [{ title, overview, impact, recommendation, severity,
+ *                 cvssScore, cvssVector, categoryName, categoryPath,
+ *                 tags: [{ name, mitreId, tactic }],
+ *                 resources: [{ name, description }] }]
+ *  actions:    [{ title, content, performedAt, createdByName,
+ *                 categoryName, tags }]
+ *  stats:      { totalFindings, bySeverity, avgCvss }
+ *  scopeTargets:     [{ type, value, notes }]
+ *  scopeExclusions:  [{ type, value, justification }]
+ *  scopeConstraints: [{ constraint }]
+ *  ipGeolocations:   [{ ip, countryCode, countryName, isPrivate }]
+ *  tags:       [{ name, mitreId, tactic, findingCount, actionCount }]
+ *
+ *  config.metadata: { clientName, assessorNames, reportDate,
+ *                     confidentialityNotice, customExecutiveSummary,
+ *                     customMethodology, distributionList }
+ *
+ *  theme.colors: { primary, accent, textPrimary, textSecondary,
+ *                  textMuted, border, white, tableHeaderBg, ... }
+ *
+ * ================================================================
+ */}
+
+{/* ---- ROOT DOCUMENT ----
+     Must be the outermost element. Sets PDF metadata (title, author)
+     from the engagement data automatically. */}
+<Document>
+
+  {/* ---- COVER PAGE ----
+       Renders as its own full-page spread. Do NOT wrap in <Page>.
+       Shows: engagement name, report type, client name, assessors,
+       report date, assessment period, logo, CONFIDENTIAL badge.
+       Visual style controlled by theme setting (dark/light/minimal). */}
+  <CoverPage />
+
+  {/* ---- CONTENT PAGES ----
+       Wrap your report sections in <Page> for correct margins.
+       Content flows automatically across pages — when one fills up
+       it continues on the next.
+
+       Always include <Header /> and <Footer /> inside each <Page>.
+       They render as fixed elements on every page in the block.
+
+       To force a page break, close </Page> and open a new <Page>. */}
+  <Page>
+    <Header />
+    <Footer />
+
+    {/* ---- CONFIDENTIALITY NOTICE ----
+         Renders the configured confidentiality notice text.
+         If a distribution list is configured, shows that too.
+         Remove these 2 lines to omit from the report. */}
+    <SectionHeading title="Confidentiality Notice" />
+    <ConfidentialityNotice />
+
+    {/* ---- TABLE OF CONTENTS ----
+         Auto-generated from the report config sections.
+         Lists enabled sections with numbering. */}
+    <SectionHeading title="Table of Contents" />
+    <TableOfContents />
+
+    {/* ---- EXECUTIVE SUMMARY ----
+         If a custom executive summary was written in the report
+         config, renders that (as markdown). Otherwise generates
+         an automatic summary with finding counts and severity
+         stat boxes (Critical / High / Medium / Low / Info). */}
+    <SectionHeading title="Executive Summary" />
+    <ExecutiveSummary />
+
+    {/* ---- SCOPE ----
+         Shows engagement description, assessment period, team
+         members, scope targets grouped by type, exclusions with
+         justifications, and constraints. */}
+    <SectionHeading title="Scope" />
+    <ScopeTable />
+
+    {/* ---- METHODOLOGY ----
+         Renders the custom methodology text (markdown) from
+         the report config. If no methodology was written,
+         renders nothing. */}
+    <SectionHeading title="Methodology" />
+    <Methodology />
+
+    {/* ---- FINDINGS SUMMARY ----
+         Severity stat boxes + a summary table showing the count
+         and finding titles for each severity level. Also shows
+         the average CVSS score if available. */}
+    <SectionHeading title="Findings Summary" />
+    <FindingsSummary />
+
+    {/* ---- DETAILED FINDINGS ----
+         Full detail card for every finding, sorted by severity:
+         - Title + severity badge
+         - Category path + CVSS score + vector
+         - Overview (markdown)
+         - Impact (markdown)
+         - Recommendation (markdown)
+         - MITRE ATT&CK tags
+         - Affected resources */}
+    <SectionHeading title="Detailed Findings" />
+    <FindingsDetail />
+
+    {/* ---- MITRE ATT&CK MAPPING ----
+         Techniques grouped by tactic in a table.
+         Shows technique ID, name, and finding/action counts.
+         If no MITRE tags exist, shows "No techniques mapped." */}
+    <SectionHeading title="MITRE ATT&CK Mapping" />
+    <MitreMatrix />
+
+    {/* ---- ATTACK NARRATIVE / TIMELINE ----
+         Chronological list of actions performed during the
+         engagement. Each entry shows: title, date/time,
+         operator name, category, content (markdown), and
+         any MITRE ATT&CK tags. */}
+    <SectionHeading title="Attack Narrative" />
+    <ActionsTimeline />
+
+    {/* ---- REMEDIATION PRIORITIES ----
+         Table of all findings sorted by severity (critical first).
+         Columns: #, Severity badge, Finding title, Recommendation
+         excerpt (first 200 chars). */}
+    <SectionHeading title="Remediation Priorities" />
+    <RemediationPlan />
+
+    {/* ---- APPENDIX: IP ADDRESSES ----
+         IP addresses grouped by country with counts.
+         Private IPs grouped under "Private". */}
+    <SectionHeading title="Appendix: IP Addresses" />
+    <IPTable />
+
+    {/* ---- APPENDIX: GLOSSARY ----
+         Standard security terms: severity levels (Critical through
+         Informational), CVSS, and MITRE ATT&CK definitions. */}
+    <SectionHeading title="Appendix: Glossary" />
+    <Glossary />
+  </Page>
+</Document>
+
+{/*
+ * ================================================================
+ *  CUSTOMIZATION EXAMPLES
+ * ================================================================
+ *
+ *  EXAMPLE 1: Add custom text before a section
+ *  -------------------------------------------
+ *  <SectionHeading title="Scope" />
+ *  <Text style={{ fontSize: 10, marginBottom: 12 }}>
+ *    The following scope was agreed upon with the client
+ *    prior to testing commencement.
+ *  </Text>
+ *  <ScopeTable />
+ *
+ *
+ *  EXAMPLE 2: Minimal executive report
+ *  ------------------------------------
+ *  <Document>
+ *    <CoverPage />
+ *    <Page>
+ *      <Header /><Footer />
+ *      <SectionHeading title="Executive Summary" />
+ *      <ExecutiveSummary />
+ *      <SectionHeading title="Findings Summary" />
+ *      <FindingsSummary />
+ *      <SectionHeading title="Remediation Priorities" />
+ *      <RemediationPlan />
+ *    </Page>
+ *  </Document>
+ *
+ *
+ *  EXAMPLE 3: Force a page break
+ *  -----------------------------
+ *  </Page>
+ *  <Page>
+ *    <Header /><Footer />
+ *    ... next sections ...
+ *  </Page>
+ *
+ *
+ *  EXAMPLE 4: Custom styled block
+ *  ------------------------------
+ *  <View style={{
+ *    backgroundColor: "#f0f0f0",
+ *    padding: 16,
+ *    borderRadius: 4,
+ *    marginBottom: 16
+ *  }}>
+ *    <Text style={{ fontSize: 12, fontWeight: 700 }}>
+ *      Important Note
+ *    </Text>
+ *    <Text style={{ fontSize: 10, marginTop: 4 }}>
+ *      This assessment was conducted under time constraints.
+ *    </Text>
+ *  </View>
+ *
+ * ================================================================
+ */}

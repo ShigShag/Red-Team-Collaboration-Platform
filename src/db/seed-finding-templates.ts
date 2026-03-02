@@ -1,0 +1,422 @@
+process.loadEnvFile();
+
+async function seedFindingTemplates() {
+  const { eq } = await import("drizzle-orm");
+  const { db } = await import("./index");
+  const { findingTemplates } = await import("./schema");
+
+  type TemplateInsert = typeof findingTemplates.$inferInsert;
+
+  const systemTemplates: Omit<TemplateInsert, "id" | "isSystem" | "createdBy" | "createdAt" | "updatedAt">[] = [
+    {
+      title: "SQL Injection",
+      category: "web",
+      severity: "critical",
+      cvssScore: "9.8",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      overview: `The application is vulnerable to SQL injection, a class of vulnerability that allows an attacker to manipulate backend database queries by injecting arbitrary SQL syntax into application inputs. By crafting malicious input, an attacker can bypass authentication, extract sensitive data, modify or delete records, and in some cases execute operating system commands on the database server.
+
+During testing, it was confirmed that user-supplied input is concatenated directly into SQL queries without proper sanitization or parameterization. This was demonstrated by injecting SQL syntax into [parameter/endpoint] and observing altered query behavior.`,
+      overviewFormat: "markdown",
+      impact: `Successful exploitation of this vulnerability could allow an attacker to:
+
+- **Read** all data in the database, including user credentials, personal information, and application secrets
+- **Modify** existing records, including escalating privileges or altering business-critical data
+- **Delete** data, causing loss of availability and potential compliance violations
+- **Execute** operating system commands on the database server (depending on database configuration and privileges)
+- **Pivot** to internal systems accessible from the database server`,
+      impactFormat: "markdown",
+      recommendation: `1. **Use parameterized queries (prepared statements)** for all database interactions. Never concatenate user input directly into SQL strings
+2. **Implement input validation** using an allow-list approach for expected data types, lengths, and formats
+3. **Apply the principle of least privilege** to database accounts used by the application — restrict to only the tables and operations required
+4. **Deploy a Web Application Firewall (WAF)** as an additional defense-in-depth layer
+5. **Conduct a code review** of all database interaction points to identify and remediate additional injection vectors`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Cross-Site Scripting (XSS) — Reflected",
+      category: "web",
+      severity: "medium",
+      cvssScore: "6.1",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+      overview: `A reflected cross-site scripting (XSS) vulnerability was identified in the application. User-supplied input is reflected back in the HTTP response without adequate encoding or sanitization, allowing an attacker to inject and execute arbitrary JavaScript in the context of a victim's browser session.
+
+This type of XSS requires the victim to click a specially crafted link. The injected script executes with the full privileges of the user's session, enabling session hijacking, credential theft, and arbitrary actions on behalf of the user.`,
+      overviewFormat: "markdown",
+      impact: `An attacker exploiting this vulnerability could:
+
+- **Hijack user sessions** by stealing session cookies or tokens
+- **Perform actions** on behalf of the victim user (account takeover)
+- **Redirect users** to malicious websites for credential phishing
+- **Deface** the application content as seen by the victim
+- **Deliver malware** or exploit browser vulnerabilities`,
+      impactFormat: "markdown",
+      recommendation: `1. **Encode all output** — apply context-appropriate encoding (HTML entity, JavaScript, URL, CSS) to all user-controlled data before rendering in the response
+2. **Implement Content Security Policy (CSP)** headers to restrict script execution sources
+3. **Use modern framework auto-escaping** features (React JSX, Angular templates) and avoid \`dangerouslySetInnerHTML\` or equivalent
+4. **Validate input** server-side using strict allow-lists for expected data formats
+5. **Set HttpOnly and Secure flags** on session cookies to limit the impact of successful XSS`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Cross-Site Scripting (XSS) — Stored",
+      category: "web",
+      severity: "high",
+      cvssScore: "8.1",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:L/A:N",
+      overview: `A stored (persistent) cross-site scripting vulnerability was identified. Malicious JavaScript injected through user input is stored in the application's database and rendered to other users without sanitization. Unlike reflected XSS, this variant does not require the victim to click a crafted link — the payload executes automatically when any user views the affected page.
+
+This makes stored XSS significantly more dangerous as it can affect all users who visit the page, including administrators.`,
+      overviewFormat: "markdown",
+      impact: `Exploitation could allow an attacker to:
+
+- **Mass session hijacking** across all users who view the affected content
+- **Worm-like propagation** if the payload can create additional stored XSS entries
+- **Administrative account compromise** if admins view user-generated content
+- **Data exfiltration** from the application on behalf of any affected user
+- **Full account takeover** of any user who views the injected content`,
+      impactFormat: "markdown",
+      recommendation: `1. **Sanitize and encode all user input** before storage and before rendering — apply context-appropriate output encoding
+2. **Implement a strict Content Security Policy** that prevents inline script execution
+3. **Use a proven HTML sanitization library** (e.g., DOMPurify) for any rich text or user-generated content
+4. **Validate input** on the server side with strict allow-lists
+5. **Review all locations** where user-generated content is rendered for proper encoding`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Insecure Direct Object Reference (IDOR)",
+      category: "web",
+      severity: "high",
+      cvssScore: "7.5",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+      overview: `The application exposes internal object references (such as database IDs, filenames, or sequential identifiers) in API endpoints or URLs and fails to verify that the authenticated user is authorized to access the referenced object. By manipulating these references, an attacker can access or modify resources belonging to other users.
+
+During testing, it was confirmed that modifying the object identifier in requests allowed access to another user's data without any authorization check beyond authentication.`,
+      overviewFormat: "markdown",
+      impact: `An attacker could:
+
+- **Access sensitive data** belonging to other users (personal information, documents, financial records)
+- **Modify or delete** other users' resources
+- **Escalate privileges** by accessing administrative objects
+- **Enumerate all records** in the system by iterating through sequential IDs`,
+      impactFormat: "markdown",
+      recommendation: `1. **Implement server-side authorization checks** on every request — verify the authenticated user has permission to access the specific resource
+2. **Use indirect references** such as UUIDs or per-session mapping tables instead of sequential database IDs
+3. **Apply the principle of least privilege** in access control logic
+4. **Log and monitor** access patterns for anomalous enumeration attempts
+5. **Conduct authorization testing** across all API endpoints and user roles`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Server-Side Request Forgery (SSRF)",
+      category: "web",
+      severity: "high",
+      cvssScore: "7.5",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      overview: `A server-side request forgery vulnerability was identified. The application accepts user-supplied URLs or hostnames and makes server-side HTTP requests to those destinations without adequate validation. An attacker can abuse this to make the server send requests to internal services, cloud metadata endpoints, or other restricted resources.
+
+This was demonstrated by supplying internal IP addresses and cloud metadata URLs, which returned sensitive internal data.`,
+      overviewFormat: "markdown",
+      impact: `An attacker exploiting SSRF could:
+
+- **Access cloud metadata services** (e.g., AWS IMDSv1 at 169.254.169.254) to steal IAM credentials
+- **Port scan and fingerprint** internal network services
+- **Access internal APIs** and administration interfaces not exposed to the internet
+- **Read local files** via \`file://\` protocol handlers (depending on implementation)
+- **Pivot to internal systems** to chain with other vulnerabilities`,
+      impactFormat: "markdown",
+      recommendation: `1. **Validate and restrict** user-supplied URLs to an allow-list of approved domains and protocols
+2. **Block requests** to private/reserved IP ranges (10.x, 172.16-31.x, 192.168.x, 169.254.x, 127.x)
+3. **Use cloud provider protections** such as AWS IMDSv2 (requiring session tokens)
+4. **Disable unnecessary URL schemes** (block file://, gopher://, dict://, etc.)
+5. **Implement network-level controls** to prevent the application server from reaching sensitive internal services`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Weak / Default Credentials",
+      category: "general",
+      severity: "high",
+      cvssScore: "7.5",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      overview: `One or more systems or services were found using default, weak, or easily guessable credentials. These include vendor default username/password combinations, common passwords (e.g., "admin/admin", "password", "123456"), or credentials derivable from publicly available documentation.
+
+Weak credentials represent one of the most common initial access vectors in real-world attacks and are trivially exploitable with automated tools.`,
+      overviewFormat: "markdown",
+      impact: `Exploitation could result in:
+
+- **Unauthorized access** to administrative interfaces, databases, or infrastructure
+- **Full system compromise** if the compromised account has elevated privileges
+- **Lateral movement** using the compromised credentials on other systems (credential reuse)
+- **Data breach** if the compromised account has access to sensitive information`,
+      impactFormat: "markdown",
+      recommendation: `1. **Change all default credentials** immediately upon deployment of any system or service
+2. **Enforce a strong password policy** — minimum 12 characters, complexity requirements, and prohibition of common passwords
+3. **Implement multi-factor authentication (MFA)** on all administrative and remote access interfaces
+4. **Deploy account lockout policies** to mitigate brute-force attacks
+5. **Conduct regular credential audits** and integrate password strength checking against known breach databases (e.g., HaveIBeenPwned)`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Missing Rate Limiting",
+      category: "api",
+      severity: "medium",
+      cvssScore: "5.3",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+      overview: `The application does not implement rate limiting on sensitive endpoints such as authentication, password reset, or API data retrieval. An attacker can make unlimited requests without being throttled or blocked, enabling brute-force attacks, credential stuffing, and enumeration.
+
+During testing, thousands of requests were submitted to the login endpoint without any rate limiting, lockout, or CAPTCHA mechanism being triggered.`,
+      overviewFormat: "markdown",
+      impact: `Without rate limiting, an attacker could:
+
+- **Brute-force credentials** against the login endpoint
+- **Enumerate valid usernames** via differing response times or messages
+- **Perform credential stuffing** using leaked credential databases
+- **Abuse resource-intensive operations** to cause denial of service
+- **Harvest data** through mass API enumeration`,
+      impactFormat: "markdown",
+      recommendation: `1. **Implement rate limiting** on all authentication endpoints — recommend maximum 5 attempts per minute with progressive backoff
+2. **Add rate limits** to all API endpoints based on business requirements
+3. **Deploy CAPTCHA** or proof-of-work challenges after repeated failed attempts
+4. **Implement account lockout** with time-based recovery for excessive failed login attempts
+5. **Monitor and alert** on anomalous request volumes`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "LLMNR/NBT-NS Poisoning",
+      category: "network",
+      severity: "high",
+      cvssScore: "7.5",
+      cvssVector: "CVSS:3.1/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+      overview: `Link-Local Multicast Name Resolution (LLMNR) and NetBIOS Name Service (NBT-NS) are enabled on the network and responding to broadcast name resolution queries. These legacy protocols allow any host on the local network to respond to name resolution requests, enabling an attacker to capture NTLMv2 hashes by poisoning responses and redirecting authentication to a rogue server.
+
+Using Responder, NTLMv2 challenge-response hashes were captured from multiple hosts on the network. Several of these hashes were subsequently cracked offline, yielding plaintext domain credentials.`,
+      overviewFormat: "markdown",
+      impact: `Exploitation allows an attacker to:
+
+- **Capture NTLMv2 hashes** of domain users passively on the network
+- **Crack hashes offline** to obtain plaintext credentials (no account lockout triggered)
+- **Relay authentication** to other services via NTLM relay attacks (e.g., to LDAP, SMB, HTTP)
+- **Gain initial foothold** in the Active Directory environment
+- **Move laterally** using compromised credentials`,
+      impactFormat: "markdown",
+      recommendation: `1. **Disable LLMNR** via Group Policy: Computer Configuration → Administrative Templates → Network → DNS Client → Turn Off Multicast Name Resolution = Enabled
+2. **Disable NBT-NS** via DHCP options or network adapter settings
+3. **Enable SMB signing** on all systems to prevent NTLM relay attacks
+4. **Enable EPA (Extended Protection for Authentication)** on LDAP and web services
+5. **Deploy network segmentation** to limit broadcast domains and lateral movement potential`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Kerberoasting",
+      category: "active_directory",
+      severity: "high",
+      cvssScore: "7.5",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+      overview: `Service accounts in the Active Directory environment are configured with Service Principal Names (SPNs) and use weak or brute-forceable passwords. Any authenticated domain user can request Kerberos service tickets (TGS) for these accounts, extract the tickets, and attempt offline password cracking — a technique known as Kerberoasting.
+
+During testing, TGS tickets were requested for all SPN-enabled accounts and several service account passwords were cracked within minutes using hashcat with a standard wordlist.`,
+      overviewFormat: "markdown",
+      impact: `Successful Kerberoasting allows an attacker to:
+
+- **Compromise service accounts** that often have elevated privileges or domain admin access
+- **Gain persistence** through service account credentials that rarely change
+- **Access sensitive systems** that the service account is authorized for (databases, file shares, applications)
+- **Escalate to Domain Admin** if any Kerberoastable account has DA-equivalent privileges`,
+      impactFormat: "markdown",
+      recommendation: `1. **Use Group Managed Service Accounts (gMSAs)** where possible — these have automatically rotated 120-character passwords that are immune to Kerberoasting
+2. **Set strong passwords (25+ characters)** on all accounts with SPNs registered
+3. **Implement a regular audit** of accounts with SPNs: \`Get-ADUser -Filter {ServicePrincipalName -ne "$null"}\`
+4. **Remove unnecessary SPNs** from accounts that no longer require them
+5. **Enable AES encryption** for Kerberos tickets and disable RC4-HMAC to make cracking harder
+6. **Monitor for TGS requests** with anomalous patterns using security event ID 4769`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "AS-REP Roasting",
+      category: "active_directory",
+      severity: "medium",
+      cvssScore: "6.5",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+      overview: `One or more Active Directory accounts are configured with "Do not require Kerberos preauthentication" enabled. This allows any user (or even an unauthenticated attacker with a list of usernames) to request an AS-REP (Authentication Service Response) for these accounts and attempt offline password cracking — a technique known as AS-REP Roasting.
+
+During testing, AS-REP hashes were obtained for accounts with preauthentication disabled and passwords were subsequently cracked offline.`,
+      overviewFormat: "markdown",
+      impact: `An attacker could:
+
+- **Crack account passwords offline** without triggering account lockout
+- **Gain unauthorized access** to the compromised accounts and their resources
+- **Escalate privileges** if any affected account has elevated permissions
+- **Perform this attack unauthenticated** if valid usernames can be enumerated`,
+      impactFormat: "markdown",
+      recommendation: `1. **Enable Kerberos preauthentication** on all accounts — audit with: \`Get-ADUser -Filter {DoesNotRequirePreAuth -eq $true}\`
+2. **Enforce strong passwords** on any accounts that must have preauthentication disabled (rare legacy requirement)
+3. **Monitor for AS-REP requests** using security event ID 4768 with pre-authentication type 0
+4. **Remove the "Do not require Kerberos preauthentication" flag** from all accounts where it is not strictly required`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Unrestricted File Upload",
+      category: "web",
+      severity: "high",
+      cvssScore: "8.8",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      overview: `The application allows users to upload files without adequate validation of file type, content, or size. An attacker can upload malicious files such as web shells, server-side scripts, or specially crafted payloads that execute on the server when accessed.
+
+During testing, a web shell was successfully uploaded by bypassing the client-side file type restriction, which only checked the file extension. The server did not validate the file's content or MIME type.`,
+      overviewFormat: "markdown",
+      impact: `An attacker could:
+
+- **Achieve remote code execution** by uploading and executing a web shell
+- **Compromise the server** and access all data and internal network resources
+- **Establish persistent access** through uploaded backdoors
+- **Serve malware** to other users through uploaded files
+- **Deny service** by uploading excessively large files`,
+      impactFormat: "markdown",
+      recommendation: `1. **Validate file type on the server** by checking both the MIME type and file content (magic bytes), not just the extension
+2. **Restrict uploaded file types** to a strict allow-list of required formats
+3. **Store uploaded files outside the web root** and serve them through a separate handler that sets Content-Disposition: attachment
+4. **Rename uploaded files** to random names to prevent direct execution
+5. **Scan uploaded files** with antivirus/anti-malware before storage
+6. **Enforce file size limits** appropriate to the application's requirements`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Cross-Site Request Forgery (CSRF)",
+      category: "web",
+      severity: "medium",
+      cvssScore: "6.5",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+      overview: `The application does not implement anti-CSRF tokens or other CSRF protection mechanisms on state-changing requests. An attacker can craft a malicious webpage that, when visited by an authenticated user, silently submits requests to the application on the user's behalf.
+
+During testing, a proof-of-concept HTML page was created that successfully performed state-changing actions (such as changing account settings) when visited by an authenticated user in a separate browser tab.`,
+      overviewFormat: "markdown",
+      impact: `An attacker could force authenticated users to:
+
+- **Change account settings** including email address and password
+- **Make financial transactions** or approve requests
+- **Modify data** or delete resources
+- **Add attacker-controlled administrators** to the application`,
+      impactFormat: "markdown",
+      recommendation: `1. **Implement anti-CSRF tokens** (synchronizer token pattern) on all state-changing forms and AJAX requests
+2. **Use the SameSite cookie attribute** (Lax or Strict) on session cookies
+3. **Verify the Origin and Referer headers** on state-changing requests
+4. **Require re-authentication** for sensitive operations (password change, email change)
+5. **Use framework-provided CSRF protection** mechanisms (e.g., Next.js server actions include CSRF protection by default)`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Publicly Accessible Cloud Storage",
+      category: "cloud",
+      severity: "high",
+      cvssScore: "7.5",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      overview: `One or more cloud storage resources (e.g., AWS S3 buckets, Azure Blob containers, GCP Storage buckets) were found to be publicly accessible. Unauthenticated users can list and download objects from the storage resource, potentially exposing sensitive data including customer information, application secrets, backups, and internal documents.
+
+The publicly accessible storage resources were identified through enumeration and confirmed by successfully listing and downloading objects without authentication.`,
+      overviewFormat: "markdown",
+      impact: `Publicly accessible cloud storage could lead to:
+
+- **Data breach** — exposure of customer PII, financial data, or protected health information
+- **Credential exposure** — access to configuration files containing API keys, database credentials, or secrets
+- **Intellectual property theft** — exposure of source code, internal documentation, or proprietary data
+- **Regulatory violations** — GDPR, HIPAA, PCI-DSS compliance failures
+- **Reputational damage** from publicly disclosed data exposure`,
+      impactFormat: "markdown",
+      recommendation: `1. **Immediately restrict public access** to all cloud storage resources — enable "Block Public Access" settings
+2. **Audit all storage resources** for public access using cloud provider tools (AWS Access Analyzer, Azure Policy, GCP IAM Analyzer)
+3. **Implement cloud security posture management (CSPM)** to continuously monitor for misconfigurations
+4. **Apply the principle of least privilege** to storage IAM policies
+5. **Enable access logging** on all storage resources to detect unauthorized access
+6. **Encrypt data at rest** and use server-side encryption with customer-managed keys`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Outdated Software with Known Vulnerabilities",
+      category: "general",
+      severity: "high",
+      cvssScore: "7.5",
+      cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      overview: `One or more systems or services are running outdated software versions with known, publicly disclosed vulnerabilities (CVEs). These vulnerabilities have published exploit code and are actively targeted by attackers. The affected software includes [software name/version] which is vulnerable to [CVE-XXXX-XXXXX].
+
+The outdated versions were identified through banner analysis, HTTP response headers, and version fingerprinting during testing.`,
+      overviewFormat: "markdown",
+      impact: `Running unpatched software exposes the environment to:
+
+- **Exploitation using public exploit code** that requires minimal attacker skill
+- **Remote code execution** depending on the specific vulnerability
+- **Data exposure** through known information disclosure flaws
+- **Denial of service** from crash-inducing vulnerabilities
+- **Automated mass exploitation** by botnets scanning for known vulnerable versions`,
+      impactFormat: "markdown",
+      recommendation: `1. **Patch immediately** — update all affected software to the latest stable versions
+2. **Implement a vulnerability management program** with regular scanning and defined SLAs for patching (critical: 24-72 hours, high: 1-2 weeks)
+3. **Enable automatic updates** where appropriate, particularly for operating systems and web browsers
+4. **Subscribe to vendor security advisories** and CVE feeds for all deployed software
+5. **Maintain a software inventory** to track versions across the environment
+6. **Apply virtual patching** via WAF or IPS rules as an interim measure while patching is scheduled`,
+      recommendationFormat: "markdown",
+    },
+    {
+      title: "Missing Security Headers",
+      category: "web",
+      severity: "low",
+      cvssScore: "3.7",
+      cvssVector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
+      overview: `The application is missing one or more recommended HTTP security headers that provide defense-in-depth against common web attacks. While missing headers alone do not constitute a direct exploitable vulnerability, they remove important security controls that mitigate the impact of other vulnerabilities such as XSS, clickjacking, and MIME-type confusion attacks.
+
+The following headers were found to be missing or misconfigured:
+- Content-Security-Policy (CSP)
+- X-Content-Type-Options
+- X-Frame-Options / frame-ancestors
+- Strict-Transport-Security (HSTS)
+- Referrer-Policy
+- Permissions-Policy`,
+      overviewFormat: "markdown",
+      impact: `Missing security headers increase exposure to:
+
+- **Cross-site scripting (XSS)** — without CSP, injected scripts execute without restriction
+- **Clickjacking** — without X-Frame-Options, the application can be framed by malicious sites
+- **MIME-type sniffing** — without X-Content-Type-Options, browsers may interpret files as executable
+- **Downgrade attacks** — without HSTS, connections may be intercepted via HTTP
+- **Information leakage** — without Referrer-Policy, sensitive URL parameters may leak to third parties`,
+      impactFormat: "markdown",
+      recommendation: `Add the following headers to all HTTP responses:
+
+1. **Content-Security-Policy**: \`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'\` (customize per application needs)
+2. **X-Content-Type-Options**: \`nosniff\`
+3. **X-Frame-Options**: \`DENY\` (or use CSP frame-ancestors)
+4. **Strict-Transport-Security**: \`max-age=31536000; includeSubDomains; preload\`
+5. **Referrer-Policy**: \`strict-origin-when-cross-origin\`
+6. **Permissions-Policy**: Restrict browser features not required by the application`,
+      recommendationFormat: "markdown",
+    },
+  ];
+
+  const existing = await db
+    .select({ title: findingTemplates.title })
+    .from(findingTemplates)
+    .where(eq(findingTemplates.isSystem, true));
+
+  const existingTitles = new Set(existing.map((e) => e.title));
+  const toInsert = systemTemplates.filter((t) => !existingTitles.has(t.title));
+
+  if (toInsert.length > 0) {
+    await db.insert(findingTemplates).values(
+      toInsert.map((t) => ({
+        ...t,
+        isSystem: true,
+        createdBy: null,
+      }))
+    );
+  }
+
+  console.log(
+    `Seeded ${toInsert.length} new finding template(s). ${existing.length} already existed.`
+  );
+  process.exit(0);
+}
+
+seedFindingTemplates().catch((err) => {
+  console.error("Seed failed:", err);
+  process.exit(1);
+});
