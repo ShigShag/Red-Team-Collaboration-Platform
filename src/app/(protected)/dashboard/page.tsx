@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { eq, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, notInArray } from "drizzle-orm";
 import { db } from "@/db";
-import { engagements, engagementMembers, engagementActivityLog, engagementCategories, notifications, users } from "@/db/schema";
+import { engagements, engagementMembers, engagementActivityLog, engagementCategories, notifications, users, coordinatorExclusions } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { ActivityTimeline } from "../engagements/[id]/activity-timeline";
 import { NotificationList } from "./notification-list";
@@ -20,8 +20,8 @@ export default async function DashboardPage({ searchParams }: Props) {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // Fetch recent engagements
-  const recentEngagements = await db
+  // Fetch recent engagements (explicit membership)
+  const explicitEngagements = await db
     .select({
       id: engagements.id,
       name: engagements.name,
@@ -33,6 +33,47 @@ export default async function DashboardPage({ searchParams }: Props) {
     .where(eq(engagementMembers.userId, session.userId))
     .orderBy(desc(engagements.createdAt))
     .limit(5);
+
+  type RecentEngagement = { id: string; name: string; role: string; createdAt: Date };
+  let recentEngagements: RecentEngagement[] = explicitEngagements;
+
+  // Include coordinator-visible engagements
+  if (session.isCoordinator) {
+    const explicitIds = explicitEngagements.map((e) => e.id);
+    const userExclusions = db
+      .select({ engagementId: coordinatorExclusions.engagementId })
+      .from(coordinatorExclusions)
+      .where(eq(coordinatorExclusions.userId, session.userId));
+
+    const coordinatorVisible = await db
+      .select({
+        id: engagements.id,
+        name: engagements.name,
+        createdAt: engagements.createdAt,
+      })
+      .from(engagements)
+      .where(
+        and(
+          eq(engagements.excludeCoordinators, false),
+          notInArray(engagements.id, userExclusions),
+          ...(explicitIds.length > 0
+            ? [notInArray(engagements.id, explicitIds)]
+            : [])
+        )
+      )
+      .orderBy(desc(engagements.createdAt))
+      .limit(5);
+
+    recentEngagements = [
+      ...explicitEngagements,
+      ...coordinatorVisible.map((e) => ({
+        ...e,
+        role: "coordinator" as const,
+      })),
+    ]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5);
+  }
 
   // Fetch recent notifications for this user
   const recentNotifications = await db
@@ -360,6 +401,7 @@ function RoleBadge({ role }: { role: string }) {
     owner: "text-accent",
     write: "text-green-500",
     read: "text-text-muted",
+    coordinator: "text-purple-400",
   };
 
   return (

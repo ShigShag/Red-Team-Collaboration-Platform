@@ -8,6 +8,7 @@ import {
   chatMessages,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { chatLimiter } from "@/lib/rate-limit";
 import {
   ollamaChat,
@@ -91,7 +92,11 @@ export async function POST(request: NextRequest) {
     .limit(1);
 
   if (!member) {
-    return NextResponse.json({ error: "Not a member" }, { status: 403 });
+    // Check virtual coordinator access
+    const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+    if (!access) {
+      return NextResponse.json({ error: "Not a member" }, { status: 403 });
+    }
   }
 
   // Get engagement context for system prompt

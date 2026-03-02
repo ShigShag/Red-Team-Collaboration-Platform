@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { BackLink } from "../back-link";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   engagements,
@@ -11,6 +11,7 @@ import {
   users,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { IpTable } from "./ip-table";
 import { checkIpScope, type ScopeStatus } from "@/lib/scope-validator";
 
@@ -31,18 +32,8 @@ export default async function IpManagementPage({ params }: Props) {
 
   if (!engagement) notFound();
 
-  const [member] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!member) notFound();
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) notFound();
 
   // Fetch all IP geolocations with source counts
   const entries = await db
@@ -92,7 +83,7 @@ export default async function IpManagementPage({ params }: Props) {
     .where(eq(ipGeolocations.engagementId, engagementId))
     .orderBy(ipGeolocations.createdAt);
 
-  const canWrite = member.role !== "read";
+  const canWrite = access.role !== "read";
 
   // Fetch engagement members for contributor color assignment
   const members = await db

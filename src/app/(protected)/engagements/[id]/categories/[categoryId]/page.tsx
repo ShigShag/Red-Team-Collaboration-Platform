@@ -25,6 +25,7 @@ import {
   engagementActivityLog,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { CategoryGrid } from "../category-grid";
 import { ResourceList } from "./resource-list";
 import { ActionList } from "./action-list";
@@ -59,19 +60,11 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
 
   if (!engagement) notFound();
 
-  // Verify membership
-  const [currentMember] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!currentMember) notFound();
+  // Verify membership (including virtual coordinator access)
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) notFound();
+  const currentMember = { role: access.role };
+  const isVirtualCoordinator = access.isVirtualCoordinator ?? false;
 
   // Fetch the category with preset info
   const [category] = await db
@@ -555,7 +548,7 @@ export default async function CategoryDetailPage({ params, searchParams }: Props
 
   const engagementStatus = (engagement.status ?? "scoping") as EngagementStatus;
   const isOwner = currentMember.role === "owner";
-  const readOnly = isContentLocked(engagementStatus, isOwner);
+  const readOnly = isContentLocked(engagementStatus, isOwner) || isVirtualCoordinator;
   const canEdit =
     !readOnly && (currentMember.role === "write" || currentMember.role === "owner");
   const canComment = engagementStatus !== "closed" && engagementStatus !== "archived";

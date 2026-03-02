@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { generatedReports, engagementMembers, engagements } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 
 const REPORTS_DIR = join(process.cwd(), "data", "reports");
 
@@ -59,7 +60,11 @@ export async function GET(
     .limit(1);
 
   if (!member) {
-    return new NextResponse(null, { status: 403 });
+    // Check virtual coordinator access
+    const access = await getEffectiveAccess(report.engagementId, session.userId, session.isCoordinator);
+    if (!access) {
+      return new NextResponse(null, { status: 403 });
+    }
   }
 
   // Read file from disk — verify path stays within REPORTS_DIR

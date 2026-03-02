@@ -4,13 +4,13 @@ import { eq, and, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   engagements,
-  engagementMembers,
   engagementCategories,
   categoryPresets,
   resources,
   resourceFields,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { CredentialsList } from "../credentials-list";
 
 interface Props {
@@ -30,18 +30,8 @@ export default async function CredentialsPage({ params }: Props) {
 
   if (!engagement) notFound();
 
-  const [member] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!member) notFound();
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) notFound();
 
   // Fetch all categories for this engagement
   const allCategories = await db

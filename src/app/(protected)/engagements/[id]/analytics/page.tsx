@@ -1,9 +1,10 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { engagements, engagementMembers } from "@/db/schema";
+import { engagements } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { BackLink } from "../back-link";
 import { getEngagementAnalytics } from "@/lib/analytics/engagement-analytics";
 import { getSeverityColor } from "@/lib/severity-colors";
@@ -32,18 +33,8 @@ export default async function EngagementAnalyticsPage({ params }: Props) {
 
   if (!engagement) notFound();
 
-  const [member] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!member) notFound();
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) notFound();
 
   const analytics = await getEngagementAnalytics(engagementId);
 

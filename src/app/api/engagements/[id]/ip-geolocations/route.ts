@@ -3,6 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ipGeolocations, engagementMembers } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 
 export async function GET(
   _request: NextRequest,
@@ -26,8 +27,13 @@ export async function GET(
     )
     .limit(1);
 
-  if (!member)
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!member) {
+    // Check virtual coordinator access
+    const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+    if (!access) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+  }
 
   // Query 1: Aggregate by country
   const geoData = await db

@@ -106,6 +106,7 @@ export async function getSession() {
       avatarPath: users.avatarPath,
       totpEnabled: users.totpEnabled,
       isAdmin: users.isAdmin,
+      isCoordinator: users.isCoordinator,
       disabledAt: users.disabledAt,
       passwordResetRequired: users.passwordResetRequired,
       onboardingDismissedAt: users.onboardingDismissedAt,

@@ -6,8 +6,9 @@ import { mkdir, readdir, stat, unlink } from "fs/promises";
 import { join } from "path";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db";
-import { engagementMembers, users } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { exportEngagementSchema } from "@/lib/validations";
 import { collectExportData } from "@/lib/exports/export-collector";
 import { buildExportZip } from "@/lib/exports/zip-builder";
@@ -29,19 +30,9 @@ export async function exportEngagement(
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // Verify membership (any role can export)
-  const [member] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!member) {
+  // Verify membership (any role or coordinator can export)
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) {
     return { error: "You are not a member of this engagement" };
   }
 

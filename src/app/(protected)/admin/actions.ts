@@ -35,6 +35,7 @@ export async function getUsers() {
       displayName: users.displayName,
       avatarPath: users.avatarPath,
       isAdmin: users.isAdmin,
+      isCoordinator: users.isCoordinator,
       totpEnabled: users.totpEnabled,
       disabledAt: users.disabledAt,
       passwordResetRequired: users.passwordResetRequired,
@@ -300,6 +301,56 @@ export async function revokeAdmin(
 
   revalidatePath("/admin");
   return { success: "Admin privileges revoked" };
+}
+
+export async function grantCoordinator(
+  _prev: AdminState,
+  formData: FormData
+): Promise<AdminState> {
+  const session = await requireAdmin();
+  const userId = formData.get("userId") as string;
+
+  await db
+    .update(users)
+    .set({ isCoordinator: true, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  const ctx = await getRequestContext();
+  await logSecurityEvent({
+    eventType: "admin_grant_coordinator",
+    userId: session.userId,
+    username: session.username,
+    ...ctx,
+    metadata: { targetUserId: userId },
+  });
+
+  revalidatePath("/admin");
+  return { success: "Coordinator privileges granted" };
+}
+
+export async function revokeCoordinator(
+  _prev: AdminState,
+  formData: FormData
+): Promise<AdminState> {
+  const session = await requireAdmin();
+  const userId = formData.get("userId") as string;
+
+  await db
+    .update(users)
+    .set({ isCoordinator: false, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  const ctx = await getRequestContext();
+  await logSecurityEvent({
+    eventType: "admin_revoke_coordinator",
+    userId: session.userId,
+    username: session.username,
+    ...ctx,
+    metadata: { targetUserId: userId },
+  });
+
+  revalidatePath("/admin");
+  return { success: "Coordinator privileges revoked" };
 }
 
 // ── Platform Settings ───────────────────────────────────────────

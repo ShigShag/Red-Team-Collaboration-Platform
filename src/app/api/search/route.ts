@@ -4,7 +4,6 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/db";
 import {
   engagements,
-  engagementMembers,
   engagementCategories,
   categoryFindings,
   categoryActions,
@@ -13,6 +12,7 @@ import {
   scopeTargets,
 } from "@/db/schema";
 import { globalSearchSchema } from "@/lib/validations";
+import { getAccessibleEngagementIds } from "@/lib/engagement-access";
 
 export interface SearchResult {
   id: string;
@@ -66,15 +66,11 @@ export async function GET(request: NextRequest) {
 
   const { q: query, type: searchType, limit } = parsed.data;
 
-  // Get all engagement IDs the user has access to
-  const accessible = await db
-    .select({
-      id: engagementMembers.engagementId,
-      name: engagements.name,
-    })
-    .from(engagementMembers)
-    .innerJoin(engagements, eq(engagementMembers.engagementId, engagements.id))
-    .where(eq(engagementMembers.userId, session.userId));
+  // Get all engagement IDs the user has access to (explicit + virtual coordinator)
+  const accessible = await getAccessibleEngagementIds(
+    session.userId,
+    session.isCoordinator
+  );
 
   if (accessible.length === 0) {
     return NextResponse.json({

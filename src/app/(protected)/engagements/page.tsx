@@ -1,23 +1,26 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { eq, desc, sql, ne } from "drizzle-orm";
+import { eq, desc, sql, and, notInArray } from "drizzle-orm";
 import { db } from "@/db";
-import { engagements, engagementMembers } from "@/db/schema";
+import { engagements, engagementMembers, coordinatorExclusions } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { CreateEngagementForm } from "./create-engagement-form";
 import { ImportButton } from "./import-button";
+import { EngagementsViewSwitcher } from "./engagements-view-switcher";
+import { EngagementsTimeline } from "./engagements-timeline";
 import {
   STATUS_META,
   type EngagementStatus,
 } from "@/lib/engagement-status";
 
 interface Props {
-  searchParams: Promise<{ archived?: string }>;
+  searchParams: Promise<{ archived?: string; view?: string }>;
 }
 
 export default async function EngagementsPage({ searchParams }: Props) {
-  const { archived: archivedParam } = await searchParams;
+  const { archived: archivedParam, view } = await searchParams;
   const showArchived = archivedParam === "true";
+  const isTimelineView = view === "timeline";
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -41,7 +44,71 @@ export default async function EngagementsPage({ searchParams }: Props) {
     .where(eq(engagementMembers.userId, session.userId))
     .orderBy(desc(engagements.createdAt));
 
-  const allEngagements = await baseQuery;
+  const allExplicit = await baseQuery;
+
+  type EngagementRow = {
+    id: string;
+    name: string;
+    description: string | null;
+    startDate: string | null;
+    endDate: string | null;
+    status: string;
+    role: string;
+    createdAt: Date;
+    memberCount: number;
+    isVirtualCoordinator?: boolean;
+  };
+
+  // If coordinator, also fetch coordinator-visible engagements
+  let allEngagements: EngagementRow[] = allExplicit;
+
+  if (session.isCoordinator) {
+    const explicitIds = allExplicit.map((e) => e.id);
+
+    const userExclusions = db
+      .select({ engagementId: coordinatorExclusions.engagementId })
+      .from(coordinatorExclusions)
+      .where(eq(coordinatorExclusions.userId, session.userId));
+
+    const coordinatorVisible = await db
+      .select({
+        id: engagements.id,
+        name: engagements.name,
+        description: engagements.description,
+        startDate: engagements.startDate,
+        endDate: engagements.endDate,
+        status: engagements.status,
+        createdAt: engagements.createdAt,
+        memberCount: sql<number>`(
+          select count(*)::int from engagement_members
+          where engagement_members.engagement_id = ${engagements.id}
+        )`,
+      })
+      .from(engagements)
+      .where(
+        and(
+          eq(engagements.excludeCoordinators, false),
+          notInArray(engagements.id, userExclusions),
+          ...(explicitIds.length > 0
+            ? [notInArray(engagements.id, explicitIds)]
+            : [])
+        )
+      )
+      .orderBy(desc(engagements.createdAt));
+
+    allEngagements = [
+      ...allExplicit,
+      ...coordinatorVisible.map((e) => ({
+        ...e,
+        role: "coordinator" as const,
+        isVirtualCoordinator: true,
+      })),
+    ];
+
+    // Re-sort by createdAt descending
+    allEngagements.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
   const archivedCount = allEngagements.filter((e) => e.status === "archived").length;
   const myEngagements = showArchived
     ? allEngagements
@@ -66,6 +133,7 @@ export default async function EngagementsPage({ searchParams }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <EngagementsViewSwitcher />
           {archivedCount > 0 && (
             <Link
               href={showArchived ? "/engagements" : "/engagements?archived=true"}
@@ -92,7 +160,7 @@ export default async function EngagementsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* Engagement cards */}
+      {/* Engagement content */}
       {myEngagements.length === 0 ? (
         <div className="border border-border-subtle rounded-lg p-12 text-center">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-accent/5 border border-accent/10 mb-4">
@@ -115,6 +183,21 @@ export default async function EngagementsPage({ searchParams }: Props) {
             Create your first engagement to get started
           </p>
         </div>
+      ) : isTimelineView ? (
+        <EngagementsTimeline
+          engagements={myEngagements.map((e) => ({
+            id: e.id,
+            name: e.name,
+            description: e.description,
+            startDate: e.startDate,
+            endDate: e.endDate,
+            status: e.status,
+            role: e.role,
+            createdAt: e.createdAt.toISOString(),
+            memberCount: e.memberCount,
+            isVirtualCoordinator: e.isVirtualCoordinator,
+          }))}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {myEngagements.map((engagement) => (
@@ -269,6 +352,7 @@ function RoleBadge({ role }: { role: string }) {
     owner: "text-accent bg-accent/5 border-accent/20",
     write: "text-green-500 bg-green-500/5 border-green-500/20",
     read: "text-text-muted bg-bg-elevated border-border-default",
+    coordinator: "text-purple-400 bg-purple-500/5 border-purple-500/20",
   };
 
   return (

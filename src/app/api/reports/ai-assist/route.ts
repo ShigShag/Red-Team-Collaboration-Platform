@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { engagementMembers } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { ollamaChatSync, isOllamaConfigured } from "@/lib/ai/ollama-client";
 
 const FIELD_PROMPTS: Record<string, string> = {
@@ -65,7 +66,11 @@ export async function POST(request: NextRequest) {
     .limit(1);
 
   if (!member) {
-    return new NextResponse(null, { status: 403 });
+    // Check virtual coordinator access
+    const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+    if (!access) {
+      return new NextResponse(null, { status: 403 });
+    }
   }
 
   const systemPrompt = FIELD_PROMPTS[fieldType];

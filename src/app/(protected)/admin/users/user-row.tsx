@@ -9,6 +9,8 @@ import {
   adminResetPassword,
   grantAdmin,
   revokeAdmin,
+  grantCoordinator,
+  revokeCoordinator,
   type AdminState,
 } from "../actions";
 
@@ -18,6 +20,7 @@ interface User {
   displayName: string | null;
   avatarPath: string | null;
   isAdmin: boolean;
+  isCoordinator: boolean;
   totpEnabled: boolean;
   disabledAt: Date | null;
   passwordResetRequired: boolean;
@@ -62,10 +65,18 @@ export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
     revokeAdmin,
     initialState
   );
+  const [grantCoordState, grantCoordAction, grantingCoord] = useActionState(
+    grantCoordinator,
+    initialState
+  );
+  const [revokeCoordState, revokeCoordAction, revokingCoord] = useActionState(
+    revokeCoordinator,
+    initialState
+  );
 
   const isDisabled = !!user.disabledAt;
   const pending =
-    disabling || enabling || deleting || resetting || pwResetting || granting || revoking;
+    disabling || enabling || deleting || resetting || pwResetting || granting || revoking || grantingCoord || revokingCoord;
   const error =
     disableState.error ||
     enableState.error ||
@@ -73,7 +84,9 @@ export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
     resetState.error ||
     pwResetState.error ||
     grantState.error ||
-    revokeState.error;
+    revokeState.error ||
+    grantCoordState.error ||
+    revokeCoordState.error;
 
   // The temp password is returned in pwResetState.success
   const tempPassword = pwResetState.success;
@@ -129,6 +142,11 @@ export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
             {user.isAdmin && (
               <span className="px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider bg-accent/10 text-accent border border-accent/20 rounded">
                 Admin
+              </span>
+            )}
+            {user.isCoordinator && (
+              <span className="px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded">
+                Coordinator
               </span>
             )}
             {isSelf && (
@@ -361,6 +379,22 @@ export function UserRow({ user, isSelf }: { user: User; isSelf: boolean }) {
                         className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors cursor-pointer disabled:opacity-50"
                       >
                         {user.isAdmin ? "Revoke Admin" : "Grant Admin"}
+                      </button>
+                    </form>
+                  )}
+
+                  {/* Grant / Revoke Coordinator */}
+                  {!isSelf && (
+                    <form
+                      action={user.isCoordinator ? revokeCoordAction : grantCoordAction}
+                    >
+                      <input type="hidden" name="userId" value={user.id} />
+                      <button
+                        type="submit"
+                        disabled={pending}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {user.isCoordinator ? "Revoke Coordinator" : "Grant Coordinator"}
                       </button>
                     </form>
                   )}

@@ -3,6 +3,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { engagementMembers } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import {
   getQACommentsForReport,
 } from "@/app/(protected)/engagements/[id]/reports/report-qa-queries";
@@ -48,7 +49,11 @@ export async function GET(request: NextRequest) {
     .limit(1);
 
   if (!member) {
-    return new NextResponse(null, { status: 403 });
+    // Check virtual coordinator access
+    const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+    if (!access) {
+      return new NextResponse(null, { status: 403 });
+    }
   }
 
   const commentsBySection = await getQACommentsForReport(reportConfigId, engagementId);

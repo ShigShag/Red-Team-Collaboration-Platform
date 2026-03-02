@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { users, engagements, engagementMembers, categoryAssignments, engagementCategories } from "@/db/schema";
+import { users, engagements, engagementMembers, categoryAssignments, engagementCategories, coordinatorExclusions } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import {
   createEngagementSchema,
@@ -73,6 +73,7 @@ export async function createEngagement(
     description: (formData.get("description") as string) || undefined,
     startDate: (formData.get("startDate") as string) || undefined,
     endDate: (formData.get("endDate") as string) || undefined,
+    excludeCoordinators: formData.get("excludeCoordinators") === "true",
   };
 
   const parsed = createEngagementSchema.safeParse(raw);
@@ -100,6 +101,7 @@ export async function createEngagement(
         description: parsed.data.description?.trim() || null,
         startDate: parsed.data.startDate || null,
         endDate: parsed.data.endDate || null,
+        excludeCoordinators: parsed.data.excludeCoordinators,
       })
       .returning({ id: engagements.id });
 
@@ -192,6 +194,16 @@ export async function addMember(
     userId: targetUser.id,
     role: parsed.data.role,
   });
+
+  // If the user was a coordinator with an exclusion, remove it
+  await db
+    .delete(coordinatorExclusions)
+    .where(
+      and(
+        eq(coordinatorExclusions.engagementId, engagementId),
+        eq(coordinatorExclusions.userId, targetUser.id)
+      )
+    );
 
   await logActivity({
     engagementId,
@@ -413,6 +425,23 @@ export async function removeMember(
   await db
     .delete(engagementMembers)
     .where(eq(engagementMembers.id, memberId));
+
+  // If the removed user is a coordinator, add exclusion to prevent virtual re-access
+  const [removedUser] = await db
+    .select({ isCoordinator: users.isCoordinator })
+    .from(users)
+    .where(eq(users.id, member.userId))
+    .limit(1);
+
+  if (removedUser?.isCoordinator) {
+    await db
+      .insert(coordinatorExclusions)
+      .values({
+        engagementId,
+        userId: member.userId,
+      })
+      .onConflictDoNothing();
+  }
 
   await logActivity({
     engagementId,
@@ -658,4 +687,165 @@ export async function transitionEngagementStatus(
   return {
     success: `Status changed to ${STATUS_META[newStatus as EngagementStatus].label}`,
   };
+}
+
+export async function excludeCoordinator(
+  _prev: EngagementState,
+  formData: FormData
+): Promise<EngagementState> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  const engagementId = formData.get("engagementId") as string;
+  const userId = formData.get("userId") as string;
+  if (!engagementId || !userId) return { error: "Missing required fields" };
+
+  const isOwner = await requireOwnership(engagementId, session.userId);
+  if (!isOwner) return { error: "Only owners can manage coordinators" };
+
+  await db
+    .insert(coordinatorExclusions)
+    .values({ engagementId, userId })
+    .onConflictDoNothing();
+
+  revalidatePath(`/engagements/${engagementId}`);
+  revalidatePath(`/engagements/${engagementId}/settings`);
+  return { success: "Coordinator excluded" };
+}
+
+export async function promoteCoordinator(
+  _prev: EngagementState,
+  formData: FormData
+): Promise<EngagementState> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  const engagementId = formData.get("engagementId") as string;
+  const userId = formData.get("userId") as string;
+  const role = formData.get("role") as string;
+  if (!engagementId || !userId || !role) return { error: "Missing required fields" };
+
+  if (!["read", "write", "owner"].includes(role)) {
+    return { error: "Invalid role" };
+  }
+
+  const isOwner = await requireOwnership(engagementId, session.userId);
+  if (!isOwner) return { error: "Only owners can manage coordinators" };
+
+  // Check engagement status lock
+  const [engForLock] = await db
+    .select({ status: engagements.status })
+    .from(engagements)
+    .where(eq(engagements.id, engagementId))
+    .limit(1);
+  if (engForLock && isMemberManagementLocked(engForLock.status)) {
+    return { error: `This engagement is ${engForLock.status} and cannot be modified.` };
+  }
+
+  // Check not already an explicit member
+  const [existing] = await db
+    .select({ id: engagementMembers.id })
+    .from(engagementMembers)
+    .where(
+      and(
+        eq(engagementMembers.engagementId, engagementId),
+        eq(engagementMembers.userId, userId)
+      )
+    )
+    .limit(1);
+
+  if (existing) {
+    return { error: "User is already an explicit member" };
+  }
+
+  // Create explicit membership
+  await db.insert(engagementMembers).values({
+    engagementId,
+    userId,
+    role: role as "read" | "write" | "owner",
+  });
+
+  // Remove any exclusion
+  await db
+    .delete(coordinatorExclusions)
+    .where(
+      and(
+        eq(coordinatorExclusions.engagementId, engagementId),
+        eq(coordinatorExclusions.userId, userId)
+      )
+    );
+
+  // Get user info for logging
+  const [targetUser] = await db
+    .select({ username: users.username, displayName: users.displayName })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const [engagement] = await db
+    .select({ name: engagements.name })
+    .from(engagements)
+    .where(eq(engagements.id, engagementId))
+    .limit(1);
+
+  await logActivity({
+    engagementId,
+    actorId: session.userId,
+    eventType: "member_joined",
+    metadata: {
+      targetUsername: targetUser?.username ?? "unknown",
+      targetDisplayName: targetUser?.displayName,
+      role,
+      promotedFromCoordinator: "true",
+    },
+  });
+
+  await createNotification({
+    userId,
+    type: "member_joined",
+    engagementId,
+    actorId: session.userId,
+    metadata: {
+      engagementName: engagement?.name ?? "Unknown",
+      role,
+    },
+  });
+
+  revalidatePath(`/engagements/${engagementId}`);
+  revalidatePath(`/engagements/${engagementId}/settings`);
+  return { success: `Coordinator promoted to ${role}` };
+}
+
+export async function updateExcludeCoordinators(
+  _prev: EngagementState,
+  formData: FormData
+): Promise<EngagementState> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  const engagementId = formData.get("engagementId") as string;
+  const exclude = formData.get("excludeCoordinators") === "true";
+  if (!engagementId) return { error: "Missing engagement ID" };
+
+  const isOwner = await requireOwnership(engagementId, session.userId);
+  if (!isOwner) return { error: "Only owners can update engagement settings" };
+
+  const [engForLock] = await db
+    .select({ status: engagements.status })
+    .from(engagements)
+    .where(eq(engagements.id, engagementId))
+    .limit(1);
+  if (engForLock && isSettingsLocked(engForLock.status)) {
+    return { error: `This engagement is ${engForLock.status} and cannot be modified.` };
+  }
+
+  await db
+    .update(engagements)
+    .set({ excludeCoordinators: exclude, updatedAt: new Date() })
+    .where(eq(engagements.id, engagementId));
+
+  revalidatePath(`/engagements/${engagementId}`);
+  revalidatePath(`/engagements/${engagementId}/settings`);
+  revalidatePath("/engagements");
+  return { success: exclude ? "Coordinators excluded" : "Coordinators can now view this engagement" };
 }

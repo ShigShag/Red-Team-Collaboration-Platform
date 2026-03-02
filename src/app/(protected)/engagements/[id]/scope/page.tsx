@@ -1,10 +1,9 @@
 import { redirect, notFound } from "next/navigation";
 import { BackLink } from "../back-link";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   engagements,
-  engagementMembers,
   scopeTargets,
   scopeExclusions,
   scopeConstraints,
@@ -12,6 +11,7 @@ import {
   scopeDocuments,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import {
   isContentLocked,
   type EngagementStatus,
@@ -43,18 +43,9 @@ export default async function ScopePage({ params }: Props) {
 
   if (!engagement) notFound();
 
-  const [member] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!member) notFound();
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) notFound();
+  const member = { role: access.role };
 
   const status = (engagement.status ?? "scoping") as EngagementStatus;
   const isOwner = member.role === "owner";

@@ -27,6 +27,7 @@ export const users = pgTable("users", {
   totpKeySalt: text("totp_key_salt"),
   totpEnabled: boolean("totp_enabled").notNull().default(false),
   isAdmin: boolean("is_admin").notNull().default(false),
+  isCoordinator: boolean("is_coordinator").notNull().default(false),
   disabledAt: timestamp("disabled_at", { withTimezone: true }),
   passwordResetRequired: boolean("password_reset_required")
     .notNull()
@@ -113,6 +114,7 @@ export const engagements = pgTable("engagements", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   status: engagementStatusEnum("status").notNull().default("scoping"),
+  excludeCoordinators: boolean("exclude_coordinators").notNull().default(false),
   startDate: date("start_date"),
   endDate: date("end_date"),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -144,6 +146,31 @@ export const engagementMembers = pgTable(
       table.userId
     ),
     index("engagement_members_user_idx").on(table.userId),
+  ]
+);
+
+// Coordinator Exclusions (per-engagement coordinator access revocations)
+
+export const coordinatorExclusions = pgTable(
+  "coordinator_exclusions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    engagementId: uuid("engagement_id")
+      .notNull()
+      .references(() => engagements.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("coordinator_exclusions_unique_idx").on(
+      table.engagementId,
+      table.userId
+    ),
+    index("coordinator_exclusions_user_idx").on(table.userId),
   ]
 );
 
@@ -992,6 +1019,8 @@ export const securityEventTypeEnum = pgEnum("security_event_type", [
   "admin_revoke_admin",
   "admin_settings_changed",
   "admin_password_reset",
+  "admin_grant_coordinator",
+  "admin_revoke_coordinator",
   "session_hijack_detected",
 ]);
 

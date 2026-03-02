@@ -1,9 +1,9 @@
 import { redirect, notFound } from "next/navigation";
 import { BackLink } from "../back-link";
 
-import { eq, and } from "drizzle-orm";
+import { eq, and, notInArray } from "drizzle-orm";
 import { db } from "@/db";
-import { users, engagements, engagementMembers } from "@/db/schema";
+import { users, engagements, engagementMembers, coordinatorExclusions } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { EngagementDetailsForm } from "./engagement-details-form";
 import { MemberList } from "../member-list";
@@ -11,6 +11,8 @@ import { AddMemberForm } from "../add-member-form";
 import { TimespanForm } from "../timespan-form";
 import { EngagementDangerZone } from "../engagement-danger-zone";
 import { EngagementStatusForm } from "../engagement-status-form";
+import { CoordinatorList } from "../coordinator-list";
+import { ExcludeCoordinatorsToggle } from "./exclude-coordinators-toggle";
 import {
   isMemberManagementLocked,
   isSettingsLocked,
@@ -75,6 +77,39 @@ export default async function EngagementSettingsPage({ params }: Props) {
     .orderBy(engagementMembers.createdAt);
 
   const ownerCount = members.filter((m) => m.role === "owner").length;
+
+  // Query virtual coordinators (isCoordinator + not excluded + not already explicit member)
+  const explicitUserIds = members.map((m) => m.userId);
+  const excludedUserIds = await db
+    .select({ userId: coordinatorExclusions.userId })
+    .from(coordinatorExclusions)
+    .where(eq(coordinatorExclusions.engagementId, engagementId));
+
+  const excludedIds = excludedUserIds.map((e) => e.userId);
+
+  const virtualCoordinatorsQuery = db
+    .select({
+      userId: users.id,
+      username: users.username,
+      displayName: users.displayName,
+      avatarPath: users.avatarPath,
+    })
+    .from(users)
+    .where(
+      and(
+        eq(users.isCoordinator, true),
+        ...(explicitUserIds.length > 0
+          ? [notInArray(users.id, explicitUserIds)]
+          : []),
+        ...(excludedIds.length > 0
+          ? [notInArray(users.id, excludedIds)]
+          : [])
+      )
+    );
+
+  const virtualCoordinators = engagement.excludeCoordinators
+    ? []
+    : await virtualCoordinatorsQuery;
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -192,6 +227,49 @@ export default async function EngagementSettingsPage({ params }: Props) {
               Add Member
             </h2>
             <AddMemberForm engagementId={engagementId} />
+          </div>
+        )}
+
+        {/* Virtual coordinators */}
+        {virtualCoordinators.length > 0 && !membersLocked && (
+          <div className="relative bg-bg-surface/80 border border-purple-500/20 rounded-lg p-5">
+            <div className="absolute top-0 left-5 right-5 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-medium text-purple-400 uppercase tracking-wider">
+                Virtual Coordinators
+              </h2>
+              <span className="text-[10px] font-mono text-text-muted">
+                {virtualCoordinators.length} {virtualCoordinators.length === 1 ? "coordinator" : "coordinators"}
+              </span>
+            </div>
+            <p className="text-[10px] text-text-muted mb-3">
+              These coordinators have automatic read-only access. You can promote them to explicit members or exclude them.
+            </p>
+            <CoordinatorList
+              coordinators={virtualCoordinators.map((c) => ({
+                userId: c.userId,
+                username: c.username,
+                displayName: c.displayName,
+                avatarUrl: c.avatarPath
+                  ? `/api/avatar/${c.userId}`
+                  : null,
+              }))}
+              engagementId={engagementId}
+            />
+          </div>
+        )}
+
+        {/* Coordinator access settings */}
+        {!settingsLocked && (
+          <div className="relative bg-bg-surface/80 border border-border-default rounded-lg p-5">
+            <div className="absolute top-0 left-5 right-5 h-px bg-gradient-to-r from-transparent via-border-default to-transparent" />
+            <h2 className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-4">
+              Coordinator Access
+            </h2>
+            <ExcludeCoordinatorsToggle
+              engagementId={engagementId}
+              initialValue={engagement.excludeCoordinators}
+            />
           </div>
         )}
 

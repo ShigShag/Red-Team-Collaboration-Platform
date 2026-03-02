@@ -10,7 +10,6 @@ import {
   scopeConstraints,
   contacts,
   scopeDocuments,
-  engagementMembers,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -21,6 +20,7 @@ import {
 } from "@/lib/validations";
 import { logActivity } from "@/lib/activity-log";
 import {
+  getEffectiveAccess,
   requireWriteAccessWithStatus,
   checkContentWritable,
 } from "@/lib/engagement-access";
@@ -541,18 +541,8 @@ export async function decryptPhone(
   const session = await getSession();
   if (!session) return null;
 
-  const [member] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!member) return null;
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) return null;
 
   try {
     return decryptFieldValue(encryptedPhone, engagementId);

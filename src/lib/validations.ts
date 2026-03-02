@@ -85,6 +85,7 @@ export const createEngagementSchema = z.object({
     .optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  excludeCoordinators: z.boolean().optional().default(false),
 });
 
 export const updateTimespanSchema = z.object({

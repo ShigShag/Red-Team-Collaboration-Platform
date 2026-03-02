@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { BackLink } from "./back-link";
-import { eq, and, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, inArray, notInArray, sql, desc, asc } from "drizzle-orm";
 import { db } from "@/db";
 import {
   users,
@@ -19,6 +19,7 @@ import {
   scopeConstraints,
   contacts,
   scopeDocuments,
+  coordinatorExclusions,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { MemberSidebar } from "./member-sidebar";
@@ -28,22 +29,27 @@ import { ActivityTimeline } from "./activity-timeline";
 import { MitreMatrixButton } from "./mitre-matrix-button";
 import { ExportButton } from "./export-button";
 import { DuplicateButton } from "./duplicate-button";
+import { ViewSwitcher } from "./view-switcher";
+import { EngagementTimeline } from "./timeline/engagement-timeline";
 import {
   isContentLocked,
   STATUS_META,
   type EngagementStatus,
 } from "@/lib/engagement-status";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 
 const ACTIVITY_PAGE_SIZE = 20;
+const TIMELINE_EVENT_LIMIT = 5000;
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ activityPage?: string; warning?: string }>;
+  searchParams: Promise<{ activityPage?: string; warning?: string; view?: string }>;
 }
 
 export default async function EngagementDetailPage({ params, searchParams }: Props) {
   const { id: engagementId } = await params;
-  const { activityPage: activityPageParam, warning } = await searchParams;
+  const { activityPage: activityPageParam, warning, view } = await searchParams;
+  const isTimelineView = view === "timeline";
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -56,24 +62,16 @@ export default async function EngagementDetailPage({ params, searchParams }: Pro
 
   if (!engagement) notFound();
 
-  // Verify membership and get current user's role
-  const [currentMember] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
+  // Verify membership (explicit or virtual coordinator)
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) notFound();
 
-  if (!currentMember) notFound();
-
-  const isOwner = currentMember.role === "owner";
+  const currentMember = { role: access.role };
+  const isVirtualCoordinator = access.isVirtualCoordinator ?? false;
+  const isOwner = access.role === "owner";
   const status = (engagement.status ?? "scoping") as EngagementStatus;
   const statusMeta = STATUS_META[status];
-  const readOnly = isContentLocked(status, isOwner);
+  const readOnly = isContentLocked(status, isOwner) || isVirtualCoordinator;
 
   // Fetch all members
   const members = await db
@@ -88,6 +86,41 @@ export default async function EngagementDetailPage({ params, searchParams }: Pro
     .innerJoin(users, eq(engagementMembers.userId, users.id))
     .where(eq(engagementMembers.engagementId, engagementId))
     .orderBy(engagementMembers.createdAt);
+
+  // Fetch virtual coordinators (coordinator users not explicitly in this engagement, not excluded)
+  let virtualCoordinators: Array<{
+    userId: string;
+    username: string;
+    displayName: string | null;
+    avatarPath: string | null;
+  }> = [];
+
+  if (!engagement.excludeCoordinators) {
+    const explicitMemberIds = members.map((m) => m.userId);
+
+    const excludedUserIds = db
+      .select({ userId: coordinatorExclusions.userId })
+      .from(coordinatorExclusions)
+      .where(eq(coordinatorExclusions.engagementId, engagementId));
+
+    virtualCoordinators = await db
+      .select({
+        userId: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        avatarPath: users.avatarPath,
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.isCoordinator, true),
+          notInArray(users.id, excludedUserIds),
+          ...(explicitMemberIds.length > 0
+            ? [notInArray(users.id, explicitMemberIds)]
+            : [])
+        )
+      );
+  }
 
   // Fetch all categories for this engagement (join preset for icon)
   const allCategories = await db
@@ -162,35 +195,72 @@ export default async function EngagementDetailPage({ params, searchParams }: Pro
     ]);
   }
 
-  // Fetch activity with pagination
-  const activityPage = Math.max(1, parseInt(activityPageParam ?? "1", 10) || 1);
+  // Fetch activity — paginated for overview, full for timeline
+  let recentActivity: Array<{
+    id: string;
+    eventType: string;
+    metadata: unknown;
+    createdAt: Date;
+    actorId: string;
+    actorUsername: string;
+    actorDisplayName: string | null;
+    actorAvatarPath: string | null;
+  }> = [];
+  let activityTotalCount = 0;
+  let activityTotalPages = 1;
+  let safeActivityPage = 1;
 
-  const [{ count: activityTotalCount }] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(engagementActivityLog)
-    .where(eq(engagementActivityLog.engagementId, engagementId));
+  if (isTimelineView) {
+    // Timeline: fetch all events chronologically (capped)
+    recentActivity = await db
+      .select({
+        id: engagementActivityLog.id,
+        eventType: engagementActivityLog.eventType,
+        metadata: engagementActivityLog.metadata,
+        createdAt: engagementActivityLog.createdAt,
+        actorId: engagementActivityLog.actorId,
+        actorUsername: users.username,
+        actorDisplayName: users.displayName,
+        actorAvatarPath: users.avatarPath,
+      })
+      .from(engagementActivityLog)
+      .innerJoin(users, eq(engagementActivityLog.actorId, users.id))
+      .where(eq(engagementActivityLog.engagementId, engagementId))
+      .orderBy(asc(engagementActivityLog.createdAt))
+      .limit(TIMELINE_EVENT_LIMIT);
+    activityTotalCount = recentActivity.length;
+  } else {
+    // Overview: paginated, newest first
+    const activityPage = Math.max(1, parseInt(activityPageParam ?? "1", 10) || 1);
 
-  const activityTotalPages = Math.max(1, Math.ceil(activityTotalCount / ACTIVITY_PAGE_SIZE));
-  const safeActivityPage = Math.min(activityPage, activityTotalPages);
-  const activityOffset = (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE;
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(engagementActivityLog)
+      .where(eq(engagementActivityLog.engagementId, engagementId));
 
-  const recentActivity = await db
-    .select({
-      id: engagementActivityLog.id,
-      eventType: engagementActivityLog.eventType,
-      metadata: engagementActivityLog.metadata,
-      createdAt: engagementActivityLog.createdAt,
-      actorId: engagementActivityLog.actorId,
-      actorUsername: users.username,
-      actorDisplayName: users.displayName,
-      actorAvatarPath: users.avatarPath,
-    })
-    .from(engagementActivityLog)
-    .innerJoin(users, eq(engagementActivityLog.actorId, users.id))
-    .where(eq(engagementActivityLog.engagementId, engagementId))
-    .orderBy(desc(engagementActivityLog.createdAt))
-    .limit(ACTIVITY_PAGE_SIZE)
-    .offset(activityOffset);
+    activityTotalCount = count;
+    activityTotalPages = Math.max(1, Math.ceil(activityTotalCount / ACTIVITY_PAGE_SIZE));
+    safeActivityPage = Math.min(activityPage, activityTotalPages);
+    const activityOffset = (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE;
+
+    recentActivity = await db
+      .select({
+        id: engagementActivityLog.id,
+        eventType: engagementActivityLog.eventType,
+        metadata: engagementActivityLog.metadata,
+        createdAt: engagementActivityLog.createdAt,
+        actorId: engagementActivityLog.actorId,
+        actorUsername: users.username,
+        actorDisplayName: users.displayName,
+        actorAvatarPath: users.avatarPath,
+      })
+      .from(engagementActivityLog)
+      .innerJoin(users, eq(engagementActivityLog.actorId, users.id))
+      .where(eq(engagementActivityLog.engagementId, engagementId))
+      .orderBy(desc(engagementActivityLog.createdAt))
+      .limit(ACTIVITY_PAGE_SIZE)
+      .offset(activityOffset);
+  }
 
   // Fetch scope data for sidebar overview
   const [scopeTargetList, scopeExclusionCount, scopeConstraintCount, scopeContactCount, scopeDocumentCount] =
@@ -560,9 +630,9 @@ export default async function EngagementDetailPage({ params, searchParams }: Pro
 
           {/* Lock banner */}
           {readOnly && (
-            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border mb-6 ${statusMeta.bgColor} ${statusMeta.borderColor}`}>
+            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border mb-6 ${isVirtualCoordinator ? "bg-purple-500/5 border-purple-500/20" : `${statusMeta.bgColor} ${statusMeta.borderColor}`}`}>
               <svg
-                className={`w-4 h-4 flex-shrink-0 ${statusMeta.color}`}
+                className={`w-4 h-4 flex-shrink-0 ${isVirtualCoordinator ? "text-purple-400" : statusMeta.color}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 strokeWidth={1.5}
@@ -574,48 +644,89 @@ export default async function EngagementDetailPage({ params, searchParams }: Pro
                   d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
                 />
               </svg>
-              <span className={`text-xs ${statusMeta.color}`}>
-                {status === "reporting"
-                  ? "This engagement is in reporting mode. Content is read-only."
-                  : status === "archived"
-                    ? "This engagement is archived. All content is read-only."
-                    : "This engagement is closed. All content is read-only."}
+              <span className={`text-xs ${isVirtualCoordinator ? "text-purple-400" : statusMeta.color}`}>
+                {isVirtualCoordinator
+                  ? "You are viewing this engagement as a coordinator. Content is read-only."
+                  : status === "reporting"
+                    ? "This engagement is in reporting mode. Content is read-only."
+                    : status === "archived"
+                      ? "This engagement is archived. All content is read-only."
+                      : "This engagement is closed. All content is read-only."}
               </span>
             </div>
           )}
 
-          {/* Categories */}
-          <CategoryGrid
-            categories={topLevelCategories}
-            engagementId={engagementId}
-            currentUserId={session.userId}
-            currentUserRole={currentMember.role}
-            members={members.map((m) => ({
-              userId: m.userId,
-              username: m.username,
-              displayName: m.displayName,
-              avatarUrl: m.avatarPath
-                ? `/api/avatar/${m.userId}`
-                : null,
-            }))}
-            readOnly={readOnly}
-          />
+          {/* View Switcher */}
+          <ViewSwitcher />
 
-          {/* Activity Timeline */}
-          <div className="mt-10">
-            <ActivityTimeline
-              events={recentActivity.map((e) => ({
-                ...e,
-                metadata: e.metadata as Record<string, string | null>,
-              }))}
-              page={safeActivityPage}
-              totalPages={activityTotalPages}
-              totalCount={activityTotalCount}
-              baseUrl={`/engagements/${engagementId}`}
-              engagementId={engagementId}
-              categoryIds={categoryIds}
+          {isTimelineView ? (
+            /* Timeline View */
+            <EngagementTimeline
+              data={{
+                events: recentActivity.map((e) => ({
+                  id: e.id,
+                  eventType: e.eventType,
+                  metadata: e.metadata as Record<string, string | null>,
+                  createdAt: e.createdAt.toISOString(),
+                  actorId: e.actorId,
+                  actorUsername: e.actorUsername,
+                  actorDisplayName: e.actorDisplayName,
+                  actorAvatarPath: e.actorAvatarPath,
+                })),
+                engagement: {
+                  id: engagementId,
+                  name: engagement.name,
+                  status: status,
+                  createdAt: engagement.createdAt.toISOString(),
+                  startDate: engagement.startDate,
+                  endDate: engagement.endDate,
+                },
+                categories: allCategories
+                  .filter((c) => !c.parentId)
+                  .map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    icon: c.icon,
+                    color: c.color,
+                  })),
+              }}
             />
-          </div>
+          ) : (
+            <>
+              {/* Categories */}
+              <CategoryGrid
+                categories={topLevelCategories}
+                engagementId={engagementId}
+                currentUserId={session.userId}
+                currentUserRole={currentMember.role}
+                members={members.map((m) => ({
+                  userId: m.userId,
+                  username: m.username,
+                  displayName: m.displayName,
+                  avatarUrl: m.avatarPath
+                    ? `/api/avatar/${m.userId}`
+                    : null,
+                }))}
+                readOnly={readOnly}
+              />
+
+              {/* Activity Timeline */}
+              <div className="mt-10">
+                <ActivityTimeline
+                  events={recentActivity.map((e) => ({
+                    ...e,
+                    metadata: e.metadata as Record<string, string | null>,
+                  }))}
+                  page={safeActivityPage}
+                  totalPages={activityTotalPages}
+                  totalCount={activityTotalCount}
+                  baseUrl={`/engagements/${engagementId}`}
+                  engagementId={engagementId}
+                  categoryIds={categoryIds}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right sidebar - members */}
@@ -631,6 +742,15 @@ export default async function EngagementDetailPage({ params, searchParams }: Pro
                     ? `/api/avatar/${m.userId}`
                     : null,
                   role: m.role,
+                }))}
+                coordinators={virtualCoordinators.map((c) => ({
+                  userId: c.userId,
+                  username: c.username,
+                  displayName: c.displayName,
+                  avatarUrl: c.avatarPath
+                    ? `/api/avatar/${c.userId}`
+                    : null,
+                  role: "coordinator",
                 }))}
                 currentUserId={session.userId}
               />

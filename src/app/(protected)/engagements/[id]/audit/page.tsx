@@ -15,6 +15,7 @@ import {
   tags,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { AuditTimeline } from "./audit-timeline";
 
 const PAGE_SIZE = 50;
@@ -127,19 +128,9 @@ export default async function AuditPage({ params, searchParams }: Props) {
 
   if (!engagement) notFound();
 
-  // Any member can view audit log
-  const [currentMember] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!currentMember) notFound();
+  // Any member (or coordinator) can view audit log
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) notFound();
 
   // Build WHERE conditions for activity log query
   const conditions: SQL[] = [

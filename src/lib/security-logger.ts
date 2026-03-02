@@ -34,6 +34,8 @@ const DB_EVENTS = new Set([
   "admin_revoke_admin",
   "admin_settings_changed",
   "admin_password_reset",
+  "admin_grant_coordinator",
+  "admin_revoke_coordinator",
   "session_hijack_detected",
 ] as const);
 
@@ -68,6 +70,8 @@ export type SecurityEventType =
   | "admin_revoke_admin"
   | "admin_settings_changed"
   | "admin_password_reset"
+  | "admin_grant_coordinator"
+  | "admin_revoke_coordinator"
   | "session_hijack_detected";
 
 type DbEventType = typeof DB_EVENTS extends Set<infer T> ? T : never;

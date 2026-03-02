@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@/db";
 import {
   engagements,
@@ -9,6 +9,7 @@ import {
   users,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { buildReportJson } from "@/lib/reports/engagement-to-report-json";
 import type { PythonReportJson } from "@/lib/reports/report-json-types";
 import { getTotalOpenQACommentCount } from "./report-qa-queries";
@@ -37,19 +38,10 @@ export default async function ReportsPage({ params }: Props) {
 
   if (!engagement) notFound();
 
-  // Verify membership
-  const [currentMember] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, engagementId),
-        eq(engagementMembers.userId, session.userId)
-      )
-    )
-    .limit(1);
-
-  if (!currentMember) notFound();
+  // Verify membership (including virtual coordinator access)
+  const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+  if (!access) notFound();
+  const currentMember = { role: access.role };
 
   const canWrite =
     currentMember.role === "write" || currentMember.role === "owner";

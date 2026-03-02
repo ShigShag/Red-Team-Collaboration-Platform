@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { join } from "path";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   engagements,
@@ -27,6 +27,7 @@ import {
   scopeDocuments,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { logActivity } from "@/lib/activity-log";
 import {
   encryptFieldValue,
@@ -58,19 +59,9 @@ export async function duplicateEngagement(
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // Verify membership (any role can duplicate — creates a new independent engagement)
-  const [member] = await db
-    .select({ role: engagementMembers.role })
-    .from(engagementMembers)
-    .where(
-      and(
-        eq(engagementMembers.engagementId, sourceEngagementId),
-        eq(engagementMembers.userId, session.userId),
-      ),
-    )
-    .limit(1);
-
-  if (!member) {
+  // Verify membership (any role or coordinator can duplicate — creates a new independent engagement)
+  const access = await getEffectiveAccess(sourceEngagementId, session.userId, session.isCoordinator);
+  if (!access) {
     return { error: "You are not a member of this engagement" };
   }
 

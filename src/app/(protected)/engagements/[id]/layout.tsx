@@ -1,8 +1,9 @@
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { engagements, engagementMembers } from "@/db/schema";
+import { engagements } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { getEffectiveAccess } from "@/lib/engagement-access";
 import { getSetting } from "@/lib/platform-settings";
 import { ChatFab } from "../../components/ai-chat/chat-fab";
 
@@ -24,18 +25,8 @@ export default async function EngagementLayout({ children, params }: Props) {
   let engagementName = "";
   if (aiEnabled) {
     // Only query engagement name if AI is enabled
-    const [member] = await db
-      .select({ role: engagementMembers.role })
-      .from(engagementMembers)
-      .where(
-        and(
-          eq(engagementMembers.engagementId, engagementId),
-          eq(engagementMembers.userId, session.userId)
-        )
-      )
-      .limit(1);
-
-    if (member) {
+    const access = await getEffectiveAccess(engagementId, session.userId, session.isCoordinator);
+    if (access) {
       const [eng] = await db
         .select({ name: engagements.name })
         .from(engagements)

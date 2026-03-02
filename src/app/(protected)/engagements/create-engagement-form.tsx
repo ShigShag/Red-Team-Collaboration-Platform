@@ -12,6 +12,7 @@ export function CreateEngagementForm() {
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [excludeCoordinators, setExcludeCoordinators] = useState(false);
   const [state, action, pending] = useActionState(
     createEngagement,
     initialState
@@ -130,6 +131,34 @@ export function CreateEngagementForm() {
                 onChange={(e) => setEndDate(e.target.value)}
                 className="w-full px-3 py-2 bg-bg-primary border border-border-default rounded text-sm text-text-primary focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-colors duration-100 [color-scheme:dark]"
               />
+            </div>
+          </div>
+
+          {/* Exclude Coordinators */}
+          <div className="flex items-center gap-2.5">
+            <input type="hidden" name="excludeCoordinators" value={String(excludeCoordinators)} />
+            <button
+              type="button"
+              role="switch"
+              aria-checked={excludeCoordinators}
+              onClick={() => setExcludeCoordinators(!excludeCoordinators)}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                excludeCoordinators ? "bg-accent" : "bg-border-default"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  excludeCoordinators ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+            <div>
+              <span className="text-xs text-text-secondary">
+                Exclude coordinators
+              </span>
+              <p className="text-[10px] text-text-muted">
+                Prevent coordinators from viewing this engagement
+              </p>
             </div>
           </div>
 
