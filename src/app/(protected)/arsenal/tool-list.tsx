@@ -6,6 +6,7 @@ import { ToolModal } from "./tool-modal";
 import { ToolCardPreview } from "./tool-card-preview";
 import { deleteArsenalTool } from "./tool-actions";
 import type { ArsenalToolData } from "./tool-actions";
+import { MarkdownRenderer } from "../components/markdown-renderer";
 
 const TOOL_CATEGORIES = [
   { value: "all", label: "All Categories" },
@@ -244,9 +245,15 @@ export function ToolList({
                         <h4 className="text-[10px] font-mono font-medium text-text-secondary uppercase tracking-[0.15em] mb-1">
                           Notes
                         </h4>
-                        <p className="text-xs text-text-primary whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto font-mono">
-                          {tool.notes}
-                        </p>
+                        {tool.notesFormat === "markdown" ? (
+                          <div className="max-h-48 overflow-y-auto">
+                            <MarkdownRenderer content={tool.notes} />
+                          </div>
+                        ) : (
+                          <p className="text-xs text-text-primary whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto font-mono">
+                            {tool.notes}
+                          </p>
+                        )}
                       </div>
                     )}
 

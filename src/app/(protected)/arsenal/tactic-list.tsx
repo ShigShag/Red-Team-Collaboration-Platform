@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { TacticModal } from "./tactic-modal";
 import { deleteArsenalTactic } from "./tactic-actions";
 import type { ArsenalTacticData } from "./tactic-actions";
+import { MarkdownRenderer } from "../components/markdown-renderer";
 
 const TACTIC_CATEGORIES = [
   { value: "all", label: "All Categories" },
@@ -250,9 +251,15 @@ export function TacticList({
                         <h4 className="text-[10px] font-mono font-medium text-text-secondary uppercase tracking-[0.15em] mb-1">
                           Content
                         </h4>
-                        <p className="text-xs text-text-primary whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto font-mono">
-                          {tactic.content}
-                        </p>
+                        {tactic.contentFormat === "markdown" ? (
+                          <div className="max-h-48 overflow-y-auto">
+                            <MarkdownRenderer content={tactic.content} />
+                          </div>
+                        ) : (
+                          <p className="text-xs text-text-primary whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto font-mono">
+                            {tactic.content}
+                          </p>
+                        )}
                       </div>
                     )}
 
