@@ -456,6 +456,20 @@
       "when": 1774114800000,
       "tag": "0063_seed_mitre_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1774201200000,
+      "tag": "0064_seed_session_finding_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1774287600000,
+      "tag": "0065_seed_broken_access_control_template",
+      "breakpoints": true
     }
   ]
 }

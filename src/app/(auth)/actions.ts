@@ -348,7 +348,7 @@ export async function verifyTotpLogin(
   }
 
   const [user] = await db
-    .select({ id: users.id, totpSecret: users.totpSecret, disabledAt: users.disabledAt, passwordResetRequired: users.passwordResetRequired })
+    .select({ id: users.id, username: users.username, totpSecret: users.totpSecret, disabledAt: users.disabledAt, passwordResetRequired: users.passwordResetRequired })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
@@ -452,6 +452,7 @@ export async function verifyTotpLogin(
   await logSecurityEvent({
     eventType: "totp_login_success",
     userId: user.id,
+    username: user.username,
     ...ctx,
   });
 
