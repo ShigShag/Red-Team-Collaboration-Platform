@@ -112,9 +112,12 @@ export async function POST(request: NextRequest) {
 
   try {
     // Handle evidence images
-    const evidenceImages = (reportJson.findings ?? [])
-      .map((f) => f.evidence_image)
-      .filter((img): img is string => !!img);
+    const evidenceImages = (reportJson.findings ?? []).flatMap((f) => {
+      if (f.evidence_images && f.evidence_images.length > 0) {
+        return f.evidence_images.map((ei) => ei.filename);
+      }
+      return f.evidence_image ? [f.evidence_image] : [];
+    });
 
     if (evidenceImages.length > 0) {
       evidenceDir = await createTempEvidenceDir();

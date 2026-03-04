@@ -275,29 +275,63 @@ export function FindingsSection({ data, onChange, expandFindingIdx }: Props) {
                         className="mt-2"
                       />
                     </QAFieldWrapper>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      <QAFieldWrapper sectionKey="findings" fieldPath={`findings[${idx}].evidence_image`}>
-                        <FieldInput
-                          label="Evidence Image Filename"
-                          value={finding.evidence_image ?? ""}
-                          onChange={(v) =>
-                            updateFinding(idx, { evidence_image: v })
-                          }
-                          placeholder="vuln001_screenshot.png"
-                        />
-                      </QAFieldWrapper>
-                      <QAFieldWrapper sectionKey="findings" fieldPath={`findings[${idx}].evidence_caption`}>
-                        <FieldInput
-                          label="Image Caption"
-                          value={finding.evidence_caption ?? ""}
-                          onChange={(v) =>
-                            updateFinding(idx, {
-                              evidence_caption: v,
-                            })
-                          }
-                          placeholder="Screenshot showing..."
-                        />
-                      </QAFieldWrapper>
+                    {/* Evidence Images */}
+                    <div className="mt-2 space-y-2">
+                      <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">
+                        Evidence Images ({(finding.evidence_images ?? []).length})
+                      </p>
+                      {(finding.evidence_images ?? []).map((ei, imgIdx) => (
+                        <div key={imgIdx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                          <FieldInput
+                            label={`Image ${imgIdx + 1} Filename`}
+                            value={ei.filename}
+                            onChange={(v) => {
+                              const updated = [...(finding.evidence_images ?? [])];
+                              updated[imgIdx] = { ...updated[imgIdx], filename: v };
+                              updateFinding(idx, {
+                                evidence_images: updated,
+                                evidence_image: updated[0]?.filename,
+                                evidence_caption: updated[0]?.caption,
+                              });
+                            }}
+                            placeholder="screenshot.png"
+                          />
+                          <FieldInput
+                            label="Caption"
+                            value={ei.caption ?? ""}
+                            onChange={(v) => {
+                              const updated = [...(finding.evidence_images ?? [])];
+                              updated[imgIdx] = { ...updated[imgIdx], caption: v || undefined };
+                              updateFinding(idx, {
+                                evidence_images: updated,
+                                evidence_image: updated[0]?.filename,
+                                evidence_caption: updated[0]?.caption,
+                              });
+                            }}
+                            placeholder="Screenshot showing..."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (finding.evidence_images ?? []).filter((_, i) => i !== imgIdx);
+                              updateFinding(idx, {
+                                evidence_images: updated.length > 0 ? updated : undefined,
+                                evidence_image: updated[0]?.filename,
+                                evidence_caption: updated[0]?.caption,
+                              });
+                            }}
+                            className="mb-1 p-1.5 text-text-secondary hover:text-red-400 transition-colors"
+                            title="Remove image"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      {(finding.evidence_images ?? []).length === 0 && (
+                        <p className="text-xs text-text-muted italic">No evidence images attached</p>
+                      )}
                     </div>
                   </div>
 

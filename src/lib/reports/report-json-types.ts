@@ -102,6 +102,7 @@ export interface FindingEntry {
   evidence_response?: string | null;
   evidence_image?: string;
   evidence_caption?: string;
+  evidence_images?: { filename: string; caption?: string }[];
   remediation_short?: string;
   remediation_long?: string;
   included?: boolean;

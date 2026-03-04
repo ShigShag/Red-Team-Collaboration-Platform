@@ -266,19 +266,19 @@ export async function buildReportJson(
     actionTagsMap.set(t.actionId, arr);
   }
 
-  // Group screenshots by finding (first screenshot only for evidence_image)
+  // Group all screenshots by finding (ordered by sortOrder from query)
   const screenshotMap = new Map<
     string,
-    { diskPath: string; originalFilename: string; caption: string | null }
+    { diskPath: string; originalFilename: string; caption: string | null }[]
   >();
   for (const s of screenshotRows) {
-    if (!screenshotMap.has(s.findingId)) {
-      screenshotMap.set(s.findingId, {
-        diskPath: s.diskPath,
-        originalFilename: s.originalFilename,
-        caption: s.caption,
-      });
-    }
+    const arr = screenshotMap.get(s.findingId) ?? [];
+    arr.push({
+      diskPath: s.diskPath,
+      originalFilename: s.originalFilename,
+      caption: s.caption,
+    });
+    screenshotMap.set(s.findingId, arr);
   }
 
   // Compute severity breakdown
@@ -407,7 +407,8 @@ export async function buildReportJson(
           (t) =>
             !t.mitreId && t.name.toLowerCase().includes("owasp")
         );
-        const screenshot = screenshotMap.get(f.id);
+        const screenshots = screenshotMap.get(f.id) ?? [];
+        const firstScreenshot = screenshots[0];
 
         return {
           id: `VULN-${String(i + 1).padStart(3, "0")}`,
@@ -432,8 +433,14 @@ export async function buildReportJson(
           impact_business: undefined,
           evidence_request: undefined,
           evidence_response: undefined,
-          evidence_image: screenshot?.originalFilename,
-          evidence_caption: screenshot?.caption ?? undefined,
+          evidence_image: firstScreenshot?.originalFilename,
+          evidence_caption: firstScreenshot?.caption ?? undefined,
+          evidence_images: screenshots.length > 0
+            ? screenshots.map((s) => ({
+                filename: s.originalFilename,
+                caption: s.caption ?? undefined,
+              }))
+            : undefined,
           remediation_short: f.recommendation ?? undefined,
           remediation_long: undefined,
         };

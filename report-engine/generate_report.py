@@ -488,6 +488,7 @@ def build():
     vt.setStyle(TableStyle(vc)); story.append(vt); story.append(PageBreak())
 
     # Individual findings
+    fig_counter = 0
     for i, fd in enumerate(findings):
         fsn = f"{sn_find}.{i+2}"; fsk = f"sec_find_{i+2}"; sc = sev_color(fd["severity"])
         story.append(Bookmark(fsk, f"{fd['id']}: {fd['title']}", level=1))
@@ -514,8 +515,14 @@ def build():
             story.append(Paragraph("<b>Server Response:</b>",ST['H3']))
             eresp = fd["evidence_response"].replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\n","<br/>")
             story.append(Paragraph(eresp, ST['CodeBlock']))
-        if fd.get("evidence_image"):
-            story.extend(evi_image(fd["evidence_image"], fd.get("evidence_caption",f"Evidence for {fd['id']}"), i+1))
+        if fd.get("evidence_images"):
+            for ei in fd["evidence_images"]:
+                fig_counter += 1
+                cap = ei.get("caption") or f"Evidence for {fd['id']}"
+                story.extend(evi_image(ei["filename"], cap, fig_counter))
+        elif fd.get("evidence_image"):
+            fig_counter += 1
+            story.extend(evi_image(fd["evidence_image"], fd.get("evidence_caption",f"Evidence for {fd['id']}"), fig_counter))
         story.append(Paragraph("<b>Remediation</b>",ST['H3']))
         if fd.get("remediation_short"): story.append(Paragraph(f"<b>Short-Term:</b> {md(fd['remediation_short'])}",ST['Body']))
         if fd.get("remediation_long"): story.append(Paragraph(f"<b>Long-Term:</b> {md(fd['remediation_long'])}",ST['Body']))
